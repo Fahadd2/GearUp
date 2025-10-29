@@ -1,5 +1,5 @@
 // ========= CONFIG & AUTH HELPERS =========
-const API = "http://127.0.0.1:8000"; // keep consistent with backend host
+const API = API_BASE; // keep consistent with backend host
 
 function getAuth() {
   try {

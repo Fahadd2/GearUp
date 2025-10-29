@@ -6,16 +6,17 @@ from psycopg_pool import ConnectionPool
 
 load_dotenv()
 
+# Railway automatically provides DATABASE_URL
 DB_URL = os.getenv("DATABASE_URL")
 if not DB_URL:
-    raise RuntimeError("DATABASE_URL not set. Put it in .env (with ?sslmode=require).")
+    raise RuntimeError("DATABASE_URL not set. Add it in Railway environment variables.")
 
-# Small client-side pool (works great with Supabase Session Pooler on port 6543)
+# Connection pool settings (optimized for Railway)
 pool = ConnectionPool(
     conninfo=DB_URL,
     min_size=1,
-    max_size=5,
-    max_idle=30,                    # seconds
+    max_size=10,  # Increased for production traffic
+    max_idle=60,  # Longer idle time for Railway
     kwargs={"row_factory": dict_row}
 )
 
@@ -23,6 +24,6 @@ def get_conn():
     """
     Usage:
         with get_conn() as conn:
-            rows = conn.execute("select 1 as ok").fetchall()
+            rows = conn.execute("SELECT * FROM cars").fetchall()
     """
     return pool.connection()
