@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — Sign In</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <h1>Sign in</h1>
+
+    <form id="loginForm" novalidate>
+      <label>
+        <span class="lab">Email</span>
+        <input required type="email" name="email" autocomplete="email" />
+      </label>
+      <label>
+        <span class="lab">Password</span>
+        <input required type="password" name="password" autocomplete="current-password" />
+      </label>
+      <button class="btn btn--primary" type="submit">Sign in</button>
+    </form>
+
+    <p class="muted" style="margin-top:10px">
+      <a href="reset.html">Forgot password?</a>
+    </p>
+    <p class="muted">New here? <a href="signup.html">Create an account</a></p>
+    <div id="msg" class="msg" style="margin-top:10px"></div>
+  </div>
+
+  <script>
+    const API = API_BASE;
+    const $ = s => document.querySelector(s);
+    const form = $("#loginForm");
+    const msg  = $("#msg");
+
+    function setMsg(text, isErr=false){
+      msg.textContent = text || "";
+      msg.className = "msg" + (isErr ? " error" : " ok");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg("Signing in…");
+      const data = Object.fromEntries(new FormData(form).entries());
+      try {
+        const r = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ email: data.email, password: data.password })
+        });
+        const text = await r.text();
+        let json = null; try { json = text ? JSON.parse(text) : null; } catch {}
+        if (!r.ok) {
+          const detail = json && (json.detail || json.message);
+          return setMsg(detail || `Login failed (${r.status})`, true);
+        }
+        if (!json || !json.token) return setMsg("Login failed: missing token.", true);
+
+        localStorage.setItem("token", json.token);
+        localStorage.setItem("user", JSON.stringify(json.customer || {}));
+        setMsg("Signed in! Redirecting…");
+
+        // If we had a pending car (user clicked Reserve before logging in)
+        // index.html will auto-open the modal for that car after load.
+        setTimeout(()=> location.href = "index.html", 500);
+      } catch (err) {
+        setMsg(err.message || "Network error", true);
+      }
+    });
+  </script>
+</body>
+</html>

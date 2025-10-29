@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — Staff Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="staff.css" />
+
+  <!-- Login guard -->
+  <script>
+    (function () {
+      const role  = (localStorage.getItem("staffRole") || "").toLowerCase();
+      const token = localStorage.getItem("staffToken");
+      if (!token || !role || (role !== "admin" && role !== "employee")) {
+        location.replace("staff-login.html");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Nav -->
+  <header class="nav">
+    <div class="container nav__inner">
+      <a class="brand" href="index.html">
+        <span class="logo">🚗</span>
+        <span class="name">GearUp</span>
+      </a>
+      <nav class="nav__links">
+        <a href="index.html#cars">Browse</a>
+        <a href="index.html#how">How it Works</a>
+        <a href="index.html#contact">Contact</a>
+      </nav>
+      <div class="nav__actions" style="gap:12px">
+        <span id="roleBadge" class="badge">Staff</span>
+        <button id="signOut" class="btn btn--ghost small">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="staff-hero">
+    <div class="container">
+      <h1 id="welcome">Welcome, Fahad</h1>
+      <p class="sub">Manage today's pickups/returns, take payments, and check fleet status.</p>
+      <div class="cards" style="margin-top:24px">
+        <div class="card-kpi">
+          <div class="label">Today's Pickups</div>
+          <div id="kpi-pickups" class="value">—</div>
+        </div>
+        <div class="card-kpi">
+          <div class="label">Today's Returns</div>
+          <div id="kpi-returns" class="value">—</div>
+        </div>
+        <div class="card-kpi">
+          <div class="label">Active Rentals</div>
+          <div id="kpi-active" class="value">—</div>
+        </div>
+        <div class="card-kpi">
+          <div class="label">Unpaid Invoices</div>
+          <div id="kpi-unpaid" class="value">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+    <div class="split">
+      <!-- Start / Close Rental -->
+      <section class="panel">
+        <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
+          <h3>Start / Close Rental</h3>
+          <span class="badge-soft">Reservations → Active → Completed</span>
+        </div>
+        <p class="hint">
+          Paste a <strong>reservation_id</strong>. <strong>Start</strong> moves <em>Reserved → Active</em>.
+          <strong>Close</strong> moves <em>Active → Completed</em> and updates invoice totals.
+        </p>
+
+        <div class="grid2">
+          <label class="wfull">
+            <span class="lab">Reservation ID (e.g. RES-12)</span>
+            <input id="resId" placeholder="Paste reservation ID" required />
+          </label>
+          <label>
+            <span class="lab">Damage Fee (SAR)</span>
+            <input id="damageFee" type="number" min="0" value="0" />
+          </label>
+          <label>
+            <span class="lab">Refuel Fee (SAR)</span>
+            <input id="refuelFee" type="number" min="0" value="0" />
+          </label>
+        </div>
+
+        <div class="row" style="margin-top:16px">
+          <button id="btnStart" class="btn btn--primary">Start Rental</button>
+          <button id="btnClose" class="btn btn--ghost">Close Rental</button>
+        </div>
+        <div id="msg-rental" class="msg" aria-live="polite"></div>
+      </section>
+
+      <!-- Record Payment -->
+      <section id="panelPayments" class="panel">
+        <h3 style="margin-bottom: 12px;">Record Payment</h3>
+        <p class="hint">Record a payment for an invoice (cash / card / transfer). Invoice flips to <em>paid</em> when total reached.</p>
+
+        <div class="grid2">
+          <label class="wfull">
+            <span class="lab">Invoice ID (e.g. INV-7)</span>
+            <input id="invoiceId" placeholder="Paste invoice ID" />
+          </label>
+          <label>
+            <span class="lab">Method</span>
+            <select id="payMethod">
+              <option value="cash">cash</option>
+              <option value="card">card</option>
+              <option value="transfer">transfer</option>
+            </select>
+          </label>
+          <label>
+            <span class="lab">Amount (SAR)</span>
+            <input id="payAmount" type="number" min="1" value="150" />
+          </label>
+        </div>
+
+        <div class="row" style="margin-top:16px">
+          <button id="btnPay" class="btn btn--primary">Pay</button>
+        </div>
+        <div id="msg-pay" class="msg" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <div class="row" style="margin-top:24px; justify-content:space-between; align-items: center;">
+      <div class="row" style="gap:12px">
+        <button id="btnRefresh" class="btn btn--outline small">⟳ Refresh</button>
+        <span id="health" class="muted small"></span>
+      </div>
+      <small class="muted">Tip: copy/paste IDs from the Reservations/Invoices pages.</small>
+    </div>
+
+    <!-- Manage Cars -->
+    <section class="panel" style="margin-top: 32px">
+      <div class="row" style="justify-content: space-between; margin-bottom: 16px;">
+        <h3>Manage Cars</h3>
+        <button id="reloadCars" class="btn btn--outline small">⟳ Refresh</button>
+      </div>
+      <p class="hint">View and edit car details. Changes save with your staff token.</p>
+      <div id="carList" class="grid-cars"></div>
+    </section>
+  </main>
+
+  <div id="toasts" class="toasts"></div>
+
+  <script>
+    // ---------- Config ----------
+    const API = API_BASE;
+    const token = localStorage.getItem("staffToken");
+    const role  = (localStorage.getItem("staffRole") || "").toLowerCase();
+    const staff = JSON.parse(localStorage.getItem("staffUser") || "{}");
+
+    // ---------- UI: role + signout ----------
+    document.getElementById("roleBadge").textContent =
+      role ? role.charAt(0).toUpperCase()+role.slice(1) : "Staff";
+    if (staff?.first_name) {
+      document.getElementById("welcome").textContent = `Welcome, ${staff.first_name}`;
+    }
+    document.getElementById("signOut").onclick = () => {
+      localStorage.removeItem("staffToken");
+      localStorage.removeItem("staffRole");
+      localStorage.removeItem("staffUser");
+      location.replace("staff-login.html");
+    };
+    // Hide payment panel for non-admins (optional rule)
+    if (role !== "admin") document.getElementById("panelPayments").style.display = "none";
+
+    // ---------- Helpers ----------
+    const $ = (s) => document.querySelector(s);
+    const toast = (text, type="ok") => {
+      const box = document.createElement("div");
+      box.className = "toast " + (type === "ok" ? "ok" : "err");
+      box.textContent = text;
+      document.getElementById("toasts").appendChild(box);
+      setTimeout(()=> box.remove(), 3000);
+    };
+    const setMsg = (id, text, type="") => {
+      const el = document.getElementById(id);
+      el.textContent = text || "";
+      el.className = "msg " + (type || "");
+    };
+    const disable = (btn, on) => { if(!btn) return; btn.disabled = on; btn.classList.toggle("is-loading", on); };
+
+    // All API calls include Authorization; if 401, force login
+    async function api(path, opts={}) {
+      const headers = Object.assign(
+        {"Content-Type":"application/json"},
+        opts.headers || {},
+        token ? {"Authorization":"Bearer " + token} : {}
+      );
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, {headers}));
+      if (r.status === 401) {
+        localStorage.removeItem("staffToken");
+        localStorage.removeItem("staffRole");
+        localStorage.removeItem("staffUser");
+        location.replace("staff-login.html");
+        return;
+      }
+      return r;
+    }
+
+    // ---------- Health + KPIs ----------
+    async function checkHealth() {
+      try {
+        const r = await api("/health", {headers:{}}); // simple GET
+        $("#health").textContent = (r && r.ok) ? "API: connected" : "API: error";
+      } catch { $("#health").textContent = "API: error"; }
+    }
+    
+    async function loadKpis(){
+      try {
+        const r = await api("/dashboard/kpis");
+        const data = await r.json().catch(()=> ({}));
+        if (r && r.ok) {
+          $("#kpi-pickups").textContent = data.todays_pickups || 0;
+          $("#kpi-returns").textContent = data.todays_returns || 0;
+          $("#kpi-active").textContent = data.active_rentals || 0;
+          $("#kpi-unpaid").textContent = data.unpaid_invoices || 0;
+        } else {
+          setKpiPlaceholders();
+        }
+      } catch {
+        setKpiPlaceholders();
+      }
+    }
+    
+    function setKpiPlaceholders(){
+      $("#kpi-pickups").textContent = "—";
+      $("#kpi-returns").textContent = "—";
+      $("#kpi-active").textContent  = "—";
+      $("#kpi-unpaid").textContent  = "—";
+    }
+
+    // ---------- Actions ----------
+    async function startRental() {
+      const btn = $("#btnStart");
+      const resId = $("#resId").value.trim();
+      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
+      disable(btn, true); setMsg("msg-rental", "Starting rental…");
+
+      try{
+        const r = await api("/rentals/start", {
+          method:"POST",
+          body: JSON.stringify({ reservation_id: resId })
+        });
+        const data = await r.json().catch(()=> ({}));
+        if(!r.ok) throw new Error(data.detail || "Failed to start rental");
+        setMsg("msg-rental", "Rental started ✔", "ok");
+        toast("Rental started","ok");
+      }catch(err){
+        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
+      }finally{ disable(btn,false); }
+    }
+
+    async function closeRental() {
+      const btn = $("#btnClose");
+      const resId = $("#resId").value.trim();
+      const damage = Number($("#damageFee").value || 0);
+      const refuel = Number($("#refuelFee").value || 0);
+      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
+      disable(btn, true); setMsg("msg-rental", "Closing rental…");
+
+      try{
+        const r = await api("/rentals/close", {
+          method:"POST",
+          body: JSON.stringify({
+            reservation_id: resId,
+            damage_fee: isNaN(damage)?0:damage,
+            refuel_fee: isNaN(refuel)?0:refuel
+          })
+        });
+        const data = await r.json().catch(()=> ({}));
+        if(!r.ok) throw new Error(data.detail || "Failed to close rental");
+        setMsg("msg-rental", "Rental closed and invoice updated ✔", "ok");
+        toast("Rental closed","ok");
+      }catch(err){
+        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
+      }finally{ disable(btn,false); }
+    }
+
+    async function recordPayment() {
+      const btn = $("#btnPay");
+      const invoiceId = $("#invoiceId").value.trim();
+      const amount = Number($("#payAmount").value);
+      const method = $("#payMethod").value;
+      if(!invoiceId){ setMsg("msg-pay","Invoice ID is required.","error"); return; }
+      if(!amount || amount <= 0){ setMsg("msg-pay","Enter a valid amount.","error"); return; }
+
+      disable(btn,true); setMsg("msg-pay","Recording payment…");
+      try{
+        const r = await api("/payments/pay", {
+          method:"POST",
+          body: JSON.stringify({ invoice_id: invoiceId, amount, method })
+        });
+        const data = await r.json().catch(()=> ({}));
+        if(!r.ok) throw new Error(data.detail || "Payment failed");
+        setMsg("msg-pay","Payment recorded ✔","ok");
+        toast("Payment recorded","ok");
+      }catch(err){
+        setMsg("msg-pay", err.message, "error"); toast(err.message,"err");
+      }finally{ disable(btn,false); }
+    }
+
+    // ---------- Manage Cars ----------
+    async function loadCarsForStaff() {
+      const list = document.getElementById("carList");
+      list.innerHTML = "<p style='color: #64748b;'>Loading cars...</p>";
+      try {
+        const res = await api("/cars", { method: "GET", headers: {} });
+        if (!res || !res.ok) throw new Error("Failed to load cars");
+        const cars = await res.json();
+        list.innerHTML = cars.map(c => `
+          <div class="car-item">
+            <div class="top">
+              <span>${c.brand} ${c.model}</span>
+              <span class="badge-soft">${c.year}</span>
+            </div>
+            <div class="row" style="gap:12px; margin: 12px 0;">
+              <label style="flex:1">
+                <small>Price/day</small>
+                <input type="number" id="price-${c.id}" value="${c.price_per_day}">
+              </label>
+              <label style="flex:1">
+                <small>Status</small>
+                <select id="status-${c.id}">
+                  <option ${c.status==="Available"?"selected":""}>Available</option>
+                  <option ${c.status==="Reserved"?"selected":""}>Reserved</option>
+                  <option ${c.status==="Rented"?"selected":""}>Rented</option>
+                  <option ${c.status==="Maintenance"?"selected":""}>Maintenance</option>
+                </select>
+              </label>
+            </div>
+            <button class="btn btn--primary small" onclick="updateCar('${c.id}')">Save Changes</button>
+          </div>
+        `).join("");
+      } catch {
+        list.innerHTML = "<p class='msg error'>Failed to load cars.</p>";
+      }
+    }
+
+    async function updateCar(id) {
+      const price  = Number(document.getElementById(`price-${id}`).value);
+      const status = document.getElementById(`status-${id}`).value;
+      try {
+        const r = await api(`/cars/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ price_per_day: price, status })
+        });
+        if (!r || !r.ok) throw new Error("Update failed");
+        toast("Car updated successfully!");
+      } catch {
+        toast("Failed to update car", "err");
+      }
+    }
+    window.updateCar = updateCar; // expose for onclick
+
+    // ---------- Wire up ----------
+    document.addEventListener("DOMContentLoaded", () => {
+      $("#btnStart").addEventListener("click", startRental);
+      $("#btnClose").addEventListener("click", closeRental);
+      if (role === "admin") {
+        const btnPay = document.getElementById("btnPay");
+        if (btnPay) btnPay.addEventListener("click", recordPayment);
+      }
+      document.getElementById("btnRefresh").addEventListener("click", () => { checkHealth(); setKpiPlaceholders(); });
+      document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
+
+      checkHealth();
+      setKpiPlaceholders();
+      loadCarsForStaff();
+    });
+  </script>
+</body>
+</html>

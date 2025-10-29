@@ -1,0 +1,606 @@
+<!doctype html> 
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp Car Rental</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- Top Nav -->
+<header class="nav">
+  <div class="container nav__inner">
+    <a class="brand" href="index.html">
+      <span class="logo">🚗</span><span class="name">GearUp</span>
+    </a>
+
+    <div class="nav__actions">
+      <span class="muted small" id="navGreeting" hidden></span>
+      <a class="muted small" id="navSignIn" href="login.html">Sign In</a>
+      <button class="btn btn--ghost small" id="navSignOut" hidden>Sign out</button>
+      <a class="btn btn--primary small" href="signup.html">Get Started</a>
+      <a class="btn btn--ghost small" href="staff.html" id="navStaff" hidden>Staff</a>
+      <button id="menu" class="menu" aria-label="Open menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<div id="drawer" class="drawer">
+  <a href="#cars">Browse Cars</a>
+  <a id="drawerSignIn" href="login.html">Sign In</a>
+  <button id="drawerSignOut" class="btn btn--ghost" hidden>Sign out</button>
+  <a class="btn btn--primary" href="signup.html">Get Started</a>
+  <a href="staff.html" id="drawerStaff" hidden>Staff</a>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container hero__inner">
+    <h1>Premium Car Rentals <span class="accent">Made Simple</span></h1>
+    <p class="lead">
+      Discover our fleet from economy to luxury. Transparent pricing, instant booking, and exceptional service.
+    </p>
+
+    <!-- Search bar (dates only) -->
+    <form id="searchBar" class="searchbar" novalidate>
+      <label class="field icon-left" for="startDate">
+        <span class="icon">📅</span>
+        <input type="date" id="startDate" required />
+      </label>
+      <label class="field icon-left" for="endDate">
+        <span class="icon">📅</span>
+        <input type="date" id="endDate" required />
+      </label>
+      <button class="btn btn--dark" type="submit">🔎 Search Cars</button>
+    </form>
+  </div>
+</section>
+
+<!-- Filters + Results -->
+<section id="cars" class="list">
+  <div class="container">
+    <div class="toolbar">
+      <div class="filters">
+        <label>
+          <span class="lab">Category</span>
+          <select id="category">
+            <option value="">Any</option>
+            <option value="small">Small</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+        <label>
+          <span class="lab">Seats</span>
+          <input id="seats" type="number" min="2" />
+        </label>
+        <label>
+          <span class="lab">Transmission</span>
+          <select id="transmission">
+            <option value="">Any</option>
+            <option value="auto">Automatic</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label>
+          <span class="lab">Max Price</span>
+          <input id="maxPrice" type="number" min="1" placeholder="200" />
+        </label>
+        <button id="apply" class="btn btn--primary">Apply</button>
+        <button id="reset" class="btn btn--ghost">Reset</button>
+      </div>
+      <div id="count" class="muted"></div>
+    </div>
+
+    <ul id="grid" class="grid"><!-- cards injected by JS --></ul>
+
+    <div id="empty" class="empty" hidden>
+      <h3>No cars available</h3>
+      <p class="muted">Try removing some filters or check back later.</p>
+      <button id="clear" class="btn btn--ghost">Clear filters</button>
+    </div>
+
+    <div id="error" class="empty" hidden style="color: #dc2626;">
+      <h3>⚠️ Unable to load cars</h3>
+      <p class="muted" id="errorMsg">Please check your connection and try again.</p>
+      <button id="retry" class="btn btn--primary">Retry</button>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container footgrid">
+    <div class="footcol">
+      <h3>How it Works</h3>
+      <ol class="steps-small">
+        <li>Browse cars and choose your dates.</li>
+        <li>Reserve instantly with your account.</li>
+        <li>Pick up, drive, and enjoy.</li>
+      </ol>
+    </div>
+    <div class="footcol">
+      <h3>About</h3>
+      <p class="muted">We focus on speed, transparency, and a smooth rental experience.</p>
+    </div>
+    <div><strong>GearUp</strong><p class="muted">Trusted rentals. Clear pricing.</p></div>
+    <div><strong>Contact</strong><p class="muted">support@gearup.com</p></div>
+    <div><strong>Hours</strong><p class="muted">08:00AM–11:59PM</p></div>
+  </div>
+  <div class="container footbtm">
+    <small class="muted">© <span id="year"></span> GearUp</small>
+  </div>
+</footer>
+
+<!-- Beautiful Reservation Modal -->
+<dialog id="modal" class="modal">
+  <form method="dialog" onsubmit="return false;">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <button class="close" aria-label="Close" id="btnClose">✕</button>
+      <h3>Reserve Your Car</h3>
+      <p class="subtitle" id="carTitle">Select a car to begin</p>
+      <div class="car-details" id="carDetails"></div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="modal-body">
+      <!-- Date Selection -->
+      <div class="date-inputs">
+        <div class="date-field">
+          <label>
+            <span class="icon">📅</span>
+            <span>Pick-up Date</span>
+          </label>
+          <input id="mStart" type="date" required />
+        </div>
+        <div class="date-field">
+          <label>
+            <span class="icon">📅</span>
+            <span>Return Date</span>
+          </label>
+          <input id="mEnd" type="date" required />
+        </div>
+      </div>
+
+      <!-- Price Summary -->
+      <div class="price-summary" id="priceSummary">
+        <div class="summary-row">
+          <span class="label">
+            <span>💰</span>
+            <span>Price per day</span>
+          </span>
+          <span id="pricePerDay">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">
+            <span>📅</span>
+            <span>Number of days</span>
+          </span>
+          <span id="numberOfDays">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">
+            <span>💳</span>
+            <span>Estimated Total</span>
+          </span>
+          <span id="estimatedTotal">—</span>
+        </div>
+      </div>
+
+      <!-- Auth Hint -->
+      <div id="authHint" class="auth-hint" hidden>
+        You need to sign in to complete this reservation
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <button class="btn btn--ghost" id="btnCancel" type="button">Cancel</button>
+      <button class="btn btn--primary" id="btnConfirm" type="button">
+        Confirm Reservation
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Toasts -->
+<div id="toasts" class="toasts"></div>
+
+<script>
+// ========= CONFIG & AUTH HELPERS =========
+const API = API_BASE;
+
+function getAuth() {
+  try {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    return token && user ? { token, user } : null;
+  } catch { return null; }
+}
+
+function requireAuthOrRedirect(pendingCarId) {
+  const auth = getAuth();
+  if (auth) return true;
+  if (pendingCarId) localStorage.setItem("pendingCarId", pendingCarId);
+  location.href = "login.html";
+  return false;
+}
+
+// --- Date helpers ---
+function todayISO() {
+  const d = new Date();
+  const m = String(d.getMonth()+1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function setDateMins() {
+  const min = todayISO();
+  ["startDate","endDate","mStart","mEnd"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.min=min;
+  });
+}
+
+// Keep end >= start in UI
+function setupDateValidation() {
+  ["startDate","mStart"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener("change",()=>{
+      const start=el.value;
+      const endEl=id==="startDate"?document.getElementById("endDate"):document.getElementById("mEnd");
+      if(endEl){
+        endEl.min=start||todayISO();
+        if(endEl.value && endEl.value<=endEl.min){
+          const d=new Date(start||todayISO());
+          d.setDate(d.getDate()+1);
+          endEl.value=d.toISOString().slice(0,10);
+        }
+      }
+    });
+  });
+}
+
+// ========= DOM =========
+const grid=document.getElementById("grid");
+const count=document.getElementById("count");
+const emptyEl=document.getElementById("empty");
+const errorEl=document.getElementById("error");
+const errorMsg=document.getElementById("errorMsg");
+const applyBtn=document.getElementById("apply");
+const resetBtn=document.getElementById("reset");
+const clearBtn=document.getElementById("clear");
+const retryBtn=document.getElementById("retry");
+const year=document.getElementById("year");
+const modal=document.getElementById("modal");
+const btnConfirm=document.getElementById("btnConfirm");
+const btnCancel=document.getElementById("btnCancel");
+const btnClose=document.getElementById("btnClose");
+
+// Nav drawer
+const menu=document.getElementById("menu");
+const drawer=document.getElementById("drawer");
+menu?.addEventListener("click",()=>drawer.classList.toggle("open"));
+drawer?.addEventListener("click",()=>drawer.classList.remove("open"));
+
+// Footer year
+year.textContent=new Date().getFullYear();
+
+// Toast
+function toast(msg, type="ok"){
+  const t=document.createElement("div");
+  t.className="toast " + (type === "ok" ? "ok" : "err");
+  t.textContent=msg;
+  document.getElementById("toasts").appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+// ========= AUTH-AWARE NAV =========
+const auth={
+  get user(){
+    try{return JSON.parse(localStorage.getItem("user")||"null");}
+    catch{return null;}
+  },
+  get token(){return localStorage.getItem("token");},
+  signOut(){
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
+};
+
+function refreshAuthUI() {
+  const greet = document.getElementById("navGreeting");
+  const signIn = document.getElementById("navSignIn");
+  const signOut = document.getElementById("navSignOut");
+  const dSignIn = document.getElementById("drawerSignIn");
+  const dSignOut = document.getElementById("drawerSignOut");
+  const navStaff = document.getElementById("navStaff");
+  const drawerStaff = document.getElementById("drawerStaff");
+
+  const u = auth.user;
+  const loggedIn = !!(u && auth.token);
+  const isStaff = u && u.role && u.role.toLowerCase() === "staff";
+
+  [signOut, dSignOut, navStaff, drawerStaff].forEach(el => el && (el.hidden = true));
+
+  if (loggedIn) {
+    if (greet) {
+      greet.textContent = `Hi, ${u.first_name || u.email}`;
+      greet.hidden = false;
+    }
+    if (signIn) signIn.style.display = "none";
+    if (signOut) signOut.hidden = false;
+    if (dSignIn) dSignIn.style.display = "none";
+    if (dSignOut) dSignOut.hidden = false;
+
+    if (isStaff) {
+      if (navStaff) navStaff.hidden = false;
+      if (drawerStaff) drawerStaff.hidden = false;
+    }
+  } else {
+    if (greet) greet.hidden = true;
+    if (signIn) signIn.style.display = "";
+    if (signOut) signOut.hidden = true;
+    if (dSignIn) dSignIn.style.display = "";
+    if (dSignOut) dSignOut.hidden = true;
+  }
+}
+
+// ========= CAR LISTING =========
+let carsData=[];
+let activeCar=null;
+
+function skeletons(n=6){
+  grid.innerHTML=Array.from({length:n}).map(()=>`
+    <li class="card" aria-busy="true">
+      <div class="card__img" style="background:#e9eef6;height:200px;"></div>
+      <div class="card__body"><div class="card__meta">Loading…</div></div>
+      <div class="card__foot"><span>—</span><span></span></div>
+    </li>`).join("");
+}
+
+function card(c){
+  const photo=c.photo_url||
+    "https://images.unsplash.com/photo-1549924231-f129b911e442?q=80&w=1600&auto=format&fit=crop";
+  return `
+  <li class="card">
+    <img class="card__img" src="${photo}" alt="${c.brand} ${c.model}" loading="lazy" />
+    <div class="card__body">
+      <h3>${c.brand} ${c.model} • ${c.year}</h3>
+      <div class="card__meta">
+        <span class="badge">Category: ${c.category}</span>
+        <span class="badge">Seats: ${c.seats}</span>
+        <span class="badge">Trans: ${c.transmission}</span>
+        <span class="badge">Fuel: ${c.fuel_type}</span>
+      </div>
+    </div>
+    <div class="card__foot">
+      <div><strong class="price">${Number(c.price_per_day).toLocaleString()}</strong> SAR / day</div>
+      <button class="btn btn--primary small" data-reserve data-id="${c.id}" data-title="${c.brand} ${c.model}">Reserve</button>
+    </div>
+  </li>`;
+}
+
+async function loadCars(){
+  skeletons();
+  emptyEl.hidden = true;
+  errorEl.hidden = true;
+  
+  try {
+    const params=new URLSearchParams();
+    const category=document.getElementById("category").value;
+    const seats=document.getElementById("seats").value;
+    const transmission=document.getElementById("transmission").value;
+    const maxPrice=document.getElementById("maxPrice").value;
+    
+    if(category)params.set("category",category);
+    if(seats)params.set("seats",seats);
+    if(transmission)params.set("transmission",transmission);
+    if(maxPrice)params.set("max_price",maxPrice);
+    
+    console.log("Fetching cars from:", `${API}/cars?${params.toString()}`);
+    
+    const res = await fetch(`${API}/cars?${params.toString()}`);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    
+    const cars = await res.json();
+    console.log("Cars received:", cars);
+    
+    if(!Array.isArray(cars) || cars.length === 0){
+      carsData=[];
+      grid.innerHTML="";
+      count.textContent="";
+      emptyEl.hidden=false;
+      return;
+    }
+    
+    carsData=cars;
+    emptyEl.hidden=true;
+    grid.innerHTML=cars.map(card).join("");
+    count.textContent=`${cars.length} car${cars.length>1?'s':''} found`;
+    
+    // Check for pending reservation
+    const pending=localStorage.getItem("pendingCarId");
+    const a=getAuth();
+    if(pending&&a){
+      localStorage.removeItem("pendingCarId");
+      const car=carsData.find(c=>c.id===pending);
+      if(car)openReserveModal(car);
+    }
+  } catch(err) {
+    console.error("Error loading cars:", err);
+    grid.innerHTML = "";
+    count.textContent = "";
+    errorMsg.textContent = err.message || "Unable to connect to server";
+    errorEl.hidden = false;
+    toast("Failed to load cars", "err");
+  }
+}
+
+// Apply/Reset
+applyBtn.addEventListener("click",loadCars);
+resetBtn.addEventListener("click",()=>{
+  document.getElementById("category").value="";
+  document.getElementById("seats").value="";
+  document.getElementById("transmission").value="";
+  document.getElementById("maxPrice").value="";
+  loadCars();
+});
+clearBtn?.addEventListener("click",()=>resetBtn.click());
+retryBtn?.addEventListener("click",loadCars);
+
+// Search bar => preload dates, scroll, load
+document.getElementById("searchBar").addEventListener("submit",e=>{
+  e.preventDefault();
+  document.getElementById("mStart").value=document.getElementById("startDate").value||"";
+  document.getElementById("mEnd").value=document.getElementById("endDate").value||"";
+  document.getElementById("cars").scrollIntoView({behavior:"smooth"});
+  loadCars();
+});
+
+// Reserve (event delegation)
+grid.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-reserve]");
+  if(!btn)return;
+  const carId=btn.dataset.id;
+  if(!requireAuthOrRedirect(carId))return;
+  const car=carsData.find(c=>c.id===carId);
+  if(car)openReserveModal(car);
+});
+
+// ========= MODAL FLOW =========
+function openReserveModal(car) {
+  activeCar = car;
+  
+  // Update title and details
+  document.getElementById("carTitle").textContent = `${car.brand} ${car.model} ${car.year}`;
+  
+  // Update car details badges
+  const detailsContainer = document.getElementById("carDetails");
+  detailsContainer.innerHTML = `
+    <span class="badge">${car.category}</span>
+    <span class="badge">${car.seats} seats</span>
+    <span class="badge">${car.transmission}</span>
+  `;
+  
+  // Update price
+  document.getElementById("pricePerDay").textContent = `${Number(car.price_per_day).toLocaleString()} SAR`;
+  
+  // Reset dates
+  const mStartEl = document.getElementById("mStart");
+  const mEndEl = document.getElementById("mEnd");
+  mStartEl.value = "";
+  mEndEl.value = "";
+  
+  // Reset summary
+  document.getElementById("numberOfDays").textContent = "—";
+  document.getElementById("estimatedTotal").textContent = "—";
+  
+  // Check auth
+  const authHintEl = document.getElementById("authHint");
+  authHintEl.hidden = !!getAuth();
+  
+  // Show modal
+  modal.showModal();
+  
+  // Add price calculation listeners
+  setupPriceCalculation(car.price_per_day);
+}
+
+function setupPriceCalculation(pricePerDay) {
+  const mStartEl = document.getElementById("mStart");
+  const mEndEl = document.getElementById("mEnd");
+  
+  function calculatePrice() {
+    const start = mStartEl.value;
+    const end = mEndEl.value;
+    
+    if (start && end) {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const days = Math.max(Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)), 1);
+      
+      if (days > 0) {
+        const total = days * pricePerDay;
+        document.getElementById("numberOfDays").textContent = `${days} day${days > 1 ? 's' : ''}`;
+        document.getElementById("estimatedTotal").textContent = `${total.toLocaleString()} SAR`;
+      }
+    } else {
+      document.getElementById("numberOfDays").textContent = "—";
+      document.getElementById("estimatedTotal").textContent = "—";
+    }
+  }
+  
+  // Remove old listeners
+  mStartEl.removeEventListener("change", calculatePrice);
+  mEndEl.removeEventListener("change", calculatePrice);
+  
+  // Add new listeners
+  mStartEl.addEventListener("change", calculatePrice);
+  mEndEl.addEventListener("change", calculatePrice);
+}
+
+btnConfirm.addEventListener("click",async()=>{
+  const btn = btnConfirm;
+  const a=getAuth();
+  
+  if(!a){
+    document.getElementById("authHint").hidden=false;
+    return;
+  }
+  
+  const start=document.getElementById("mStart").value;
+  const end=document.getElementById("mEnd").value;
+  
+  if(!start||!end){
+    toast("Please select both pick-up and return dates", "err");
+    return;
+  }
+  
+  // Add loading state
+  btn.classList.add("is-loading");
+  btn.disabled = true;
+  
+  try{
+    const r=await fetch(`${API}/reservations/create_auth`,{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":`Bearer ${a.token}`,
+      },
+      body:JSON.stringify({car_id:activeCar.id,start_date:start,end_date:end})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.detail||"Failed to reserve");
+    toast("🎉 Reservation confirmed!", "ok");
+    modal.close();
+    loadCars();
+  }catch(err){
+    toast(err.message||"Reservation failed", "err");
+  }finally{
+    btn.classList.remove("is-loading");
+    btn.disabled = false;
+  }
+});
+
+btnCancel.addEventListener("click",()=>modal.close());
+btnClose.addEventListener("click",()=>modal.close());
+
+// ========= INITIALIZATION =========
+document.addEventListener("DOMContentLoaded", () => {
+  setDateMins();
+  setupDateValidation();
+  refreshAuthUI();
+  
+  [document.getElementById("navSignOut"),document.getElementById("drawerSignOut")]
+    .forEach(btn=>btn&&btn.addEventListener("click",()=>{auth.signOut();location.reload();}));
+  
+  loadCars();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — Sign Up</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <h1>Create your account</h1>
+
+    <form id="signup-form" novalidate>
+      <div class="grid-2">
+        <label>
+          <span class="lab">First name</span>
+          <input required name="first_name" autocomplete="given-name" />
+        </label>
+
+        <label>
+          <span class="lab">Last name</span>
+          <input required name="last_name" autocomplete="family-name" />
+        </label>
+      </div>
+
+      <label>
+        <span class="lab">Email</span>
+        <input required type="email" name="email" autocomplete="email" />
+      </label>
+
+      <label>
+        <span class="lab">Phone <span class="muted">(optional)</span></span>
+        <input name="phone" autocomplete="tel" />
+      </label>
+
+      <label>
+        <span class="lab">Driver License No.</span>
+        <input required name="license_no" />
+      </label>
+
+      <div class="grid-2">
+        <label>
+          <span class="lab">Driver License Expiry</span>
+          <input required type="date" name="license_expiry" />
+          <small class="muted">Must be a future date</small>
+        </label>
+
+        <label>
+          <span class="lab">Date of birth</span>
+          <input required type="date" name="date_of_birth" />
+          <small class="muted">You must be <strong>17+</strong></small>
+        </label>
+      </div>
+
+      <label>
+        <span class="lab">Password</span>
+        <input required type="password" name="password" minlength="6" placeholder="Min 6 characters" autocomplete="new-password" />
+      </label>
+
+      <button class="btn btn-primary" type="submit">Create account</button>
+    </form>
+
+    <p class="muted">Already have an account? <a href="login.html">Sign in</a></p>
+    <div id="auth-msg" class="msg" aria-live="polite"></div>
+  </div>
+
+  <script>
+    const API = API_BASE;
+    const form = document.getElementById('signup-form');
+    const msg  = document.getElementById('auth-msg');
+
+    function setMsg(text, isErr=false){
+      msg.textContent = text || "";
+      msg.className = "msg" + (isErr ? " error" : " ok");
+    }
+    const toISO = (d) => d ? new Date(d).toISOString().slice(0,10) : "";
+    const isFuture = (iso) => { const t = new Date(); t.setHours(0,0,0,0); return new Date(iso) > t; };
+    const ageFrom = (iso) => {
+      if (!iso) return 0;
+      const dob = new Date(iso), t = new Date();
+      let a = t.getFullYear() - dob.getFullYear();
+      const m = t.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && t.getDate() < dob.getDate())) a--;
+      return a;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setMsg("Creating account…");
+
+      const data = Object.fromEntries(new FormData(form).entries());
+      data.license_expiry = toISO(data.license_expiry);
+      data.date_of_birth  = toISO(data.date_of_birth);
+
+      // client-side checks
+      if (!isFuture(data.license_expiry)) return setMsg("License expiry must be a future date.", true);
+      if (ageFrom(data.date_of_birth) < 17) return setMsg("You must be at least 17 years old.", true);
+
+      try {
+        const r = await fetch(`${API_BASE}/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        const text = await r.text();
+        let json = null;
+        try { json = text ? JSON.parse(text) : null; } catch {}
+
+        if (!r.ok) {
+          const detail = json && (json.detail || json.message);
+          return setMsg(detail || `Signup failed (${r.status})`, true);
+        }
+        if (!json || !json.token) {
+          return setMsg("Signup failed: missing token in response.", true);
+        }
+
+        localStorage.setItem("token", json.token);
+        localStorage.setItem("user", JSON.stringify(json.customer || {}));
+        setMsg("Account created! Redirecting…");
+        setTimeout(()=>location.href="index.html", 800);
+      } catch (err) {
+        setMsg(err.message || "Network error", true);
+      }
+    });
+  </script>
+</body>
+</html>

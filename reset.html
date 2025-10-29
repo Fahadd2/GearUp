@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — Reset Password</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <h1>Reset your password</h1>
+    <p class="muted" style="margin-top:-6px">
+      Enter the email on your account and your driver license number. If they match, you can set a new password.
+    </p>
+
+    <form id="resetForm" novalidate>
+      <label>
+        <span class="lab">Email</span>
+        <input required type="email" name="email" placeholder="you@example.com" />
+      </label>
+      <label>
+        <span class="lab">Driver License No.</span>
+        <input required name="license_no" placeholder="e.g. ABC-123-456" />
+      </label>
+      <div class="grid-2">
+        <label>
+          <span class="lab">New password</span>
+          <input required type="password" name="new_password" minlength="6" placeholder="Min 6 characters" />
+        </label>
+        <label>
+          <span class="lab">Confirm password</span>
+          <input required type="password" name="confirm" minlength="6" placeholder="Re-enter password" />
+        </label>
+      </div>
+      <button class="btn btn--primary" type="submit">Reset password</button>
+    </form>
+
+    <p class="muted" style="margin-top:10px">Back to <a href="login.html">Sign in</a></p>
+    <div id="msg" class="msg" style="margin-top:10px"></div>
+  </div>
+
+  <script>
+    const API = API_BASE;
+    const $ = s => document.querySelector(s);
+    const form = $("#resetForm");
+    const msg  = $("#msg");
+
+    function setMsg(text, isErr=false){
+      msg.textContent = text || "";
+      msg.className = "msg" + (isErr ? " error" : " ok");
+    }
+    const normalizeLicense = s => (s || "").replace(/[^a-z0-9]/gi,"").toUpperCase();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg("Processing…", false);
+
+      const data = Object.fromEntries(new FormData(form).entries());
+      if (data.new_password !== data.confirm) {
+        return setMsg("Passwords do not match.", true);
+      }
+
+      try {
+        const r = await fetch(`${API_BASE}/auth/reset_by_license`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            email: data.email.trim(),
+            license_no: normalizeLicense(data.license_no),
+            new_password: data.new_password
+          })
+        });
+        const text = await r.text();
+        let json = null; try { json = text ? JSON.parse(text) : null; } catch {}
+
+        if (!r.ok) {
+          const detail = json && (json.detail || json.message);
+          return setMsg(detail || `Reset failed (${r.status})`, true);
+        }
+
+        setMsg("Password updated. You can now sign in.");
+        setTimeout(() => location.href = "login.html", 900);
+      } catch (err) {
+        setMsg(err.message || "Network error", true);
+      }
+    });
+  </script>
+</body>
+</html>
