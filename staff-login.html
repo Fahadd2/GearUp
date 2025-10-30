@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GearUp — Staff Login</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
   <style>
     .auth-page{display:grid;place-items:center;min-height:100vh;background:#f6f8fb}
     .auth-card{background:#fff;max-width:420px;width:100%;padding:24px;border-radius:16px;
@@ -14,7 +15,6 @@
     .msg{margin-top:10px;font-size:.95rem}
     .msg.error{color:#b42318}
     .msg.ok{color:#05603a}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     input, select{width:100%;padding:10px 12px;border:1px solid #d0d5dd;border-radius:10px}
     .btn{padding:10px 14px;border:none;border-radius:10px;cursor:pointer}
     .btn-primary{background:#113768;color:#fff}
@@ -40,7 +40,7 @@
         </select>
       </label>
       <div class="row" style="margin-top:10px">
-        <button class="btn btn-primary" type="submit" id="btnLogin">Sign In</button>
+        <button class="btn btn-primary" type="submit">Sign In</button>
         <a class="muted" href="index.html">Back to site</a>
       </div>
     </form>
@@ -49,8 +49,6 @@
   </div>
 
   <script>
-    const API = API_BASE; // match your backend exactly
-
     function setMsg(text, type){
       const el = document.getElementById("msg");
       el.textContent = text || "";
@@ -63,8 +61,6 @@
 
       const form = e.currentTarget;
       const values = Object.fromEntries(new FormData(form).entries());
-
-      // normalize role to lowercase
       values.role = String(values.role || "").toLowerCase();
 
       try{
@@ -77,20 +73,19 @@
         const data = await r.json().catch(()=> ({}));
 
         if(!r.ok){
-          // Show server message if present, else generic
           setMsg(data.detail || "Invalid email, password, or role.", "error");
           return;
         }
 
-        // Success: store token + staff info then go to staff portal
         localStorage.setItem("staffToken", data.token);
         localStorage.setItem("staffRole", (data.employee?.role || values.role || "").toLowerCase());
         localStorage.setItem("staffUser", JSON.stringify(data.employee || {}));
 
-        setMsg("Signed in ✔ Redirecting…", "ok");
+        setMsg("Signed in ✓ Redirecting…", "ok");
         setTimeout(()=> location.href = "staff.html", 600);
       }catch(err){
         setMsg("Network error — is the API running?", "error");
+        console.error("Login error:", err);
       }
     });
   </script>
