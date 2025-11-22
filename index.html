@@ -286,8 +286,22 @@ const btnClose=document.getElementById("btnClose");
 const menu=document.getElementById("menu");
 const drawer=document.getElementById("drawer");
 
-menu?.addEventListener("click",()=>drawer.classList.toggle("open"));
+menu?.addEventListener("click",(e)=>{
+  e.preventDefault();
+  e.stopPropagation();
+  drawer.classList.toggle("open");
+  console.log("Drawer toggled. Is open:", drawer.classList.contains("open"));
+  console.log("Drawer classes:", drawer.className);
+});
+
 drawer?.addEventListener("click",()=>drawer.classList.remove("open"));
+
+// Close drawer when clicking outside
+document.addEventListener("click",(e)=>{
+  if(drawer && !drawer.contains(e.target) && !menu.contains(e.target)){
+    drawer.classList.remove("open");
+  }
+});
 
 // Footer year
 year.textContent=new Date().getFullYear();
