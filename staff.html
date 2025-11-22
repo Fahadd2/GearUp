@@ -132,13 +132,15 @@
       </section>
     </div>
 
-    <div class="row" style="margin-top:24px; justify-content:space-between; align-items: center;">
-      <div class="row" style="gap:12px">
-        <button id="btnRefresh" class="btn btn--outline small">⟳ Refresh</button>
-        <span id="health" class="muted small"></span>
+    <!-- Reservations -->
+    <section class="panel" style="margin-top: 32px">
+      <div class="row" style="justify-content: space-between; margin-bottom: 16px;">
+        <h3>Reservations</h3>
+        <button id="reloadReservations" class="btn btn--outline small">⟳ Refresh</button>
       </div>
-      <small class="muted">Tip: copy/paste IDs from the Reservations/Invoices pages.</small>
-    </div>
+      <p class="hint">View all reservations. Copy reservation IDs to start or close rentals.</p>
+      <div id="reservationList" style="overflow-x: auto;"></div>
+    </section>
 
     <!-- Manage Cars -->
     <section class="panel" style="margin-top: 32px">
@@ -209,14 +211,7 @@
       return r;
     }
 
-    // ---------- Health + KPIs ----------
-    async function checkHealth() {
-      try {
-        const r = await api("/health", {headers:{}}); // simple GET
-        $("#health").textContent = (r && r.ok) ? "API: connected" : "API: error";
-      } catch { $("#health").textContent = "API: error"; }
-    }
-    
+    // ---------- KPIs ----------
     async function loadKpis(){
       try {
         const r = await api("/dashboard/kpis");
@@ -311,6 +306,63 @@
       }finally{ disable(btn,false); }
     }
 
+    // ---------- Reservations ----------
+    async function loadReservations() {
+      const list = document.getElementById("reservationList");
+      list.innerHTML = "<p style='color: #64748b;'>Loading reservations...</p>";
+      try {
+        const res = await api("/reservations", { method: "GET" });
+        if (!res || !res.ok) throw new Error("Failed to load reservations");
+        const reservations = await res.json();
+
+        if (reservations.length === 0) {
+          list.innerHTML = "<p class='muted'>No reservations found.</p>";
+          return;
+        }
+
+        const statusColors = {
+          'Reserved': 'badge-soft',
+          'Active': 'badge',
+          'Completed': 'muted'
+        };
+
+        list.innerHTML = `
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
+                <th style="padding: 12px;">ID</th>
+                <th style="padding: 12px;">Customer</th>
+                <th style="padding: 12px;">Car</th>
+                <th style="padding: 12px;">Start Date</th>
+                <th style="padding: 12px;">End Date</th>
+                <th style="padding: 12px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reservations.map(r => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 12px;"><strong>${r.res_id}</strong></td>
+                  <td style="padding: 12px;">
+                    ${r.customer_name || 'N/A'}<br>
+                    <small class="muted">${r.customer_email || ''}</small>
+                  </td>
+                  <td style="padding: 12px;">${r.car_name || r.car_id}</td>
+                  <td style="padding: 12px;">${r.start_date}</td>
+                  <td style="padding: 12px;">${r.end_date}</td>
+                  <td style="padding: 12px;">
+                    <span class="${statusColors[r.status] || 'badge-soft'}">${r.status}</span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        list.innerHTML = "<p class='msg error'>Failed to load reservations.</p>";
+        console.error("Error loading reservations:", err);
+      }
+    }
+
     // ---------- Manage Cars ----------
     async function loadCarsForStaff() {
       const list = document.getElementById("carList");
@@ -372,11 +424,11 @@
         const btnPay = document.getElementById("btnPay");
         if (btnPay) btnPay.addEventListener("click", recordPayment);
       }
-      document.getElementById("btnRefresh").addEventListener("click", () => { checkHealth(); setKpiPlaceholders(); });
+      document.getElementById("reloadReservations").addEventListener("click", loadReservations);
       document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
 
-      checkHealth();
-      setKpiPlaceholders();
+      loadKpis();
+      loadReservations();
       loadCarsForStaff();
     });
   </script>

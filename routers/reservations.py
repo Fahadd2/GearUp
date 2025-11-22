@@ -87,3 +87,27 @@ def create_reservation_authed(payload: ReserveAuthedIn,
         """, {"rid": res["res_id"], "total": total}).fetchone()
 
     return {"reservation_id": res["res_id"], "invoice_id": inv["inv_id"], "total_amount": float(inv["total_amount"])}
+
+
+@router.get("")
+def list_reservations():
+    """List all reservations with customer and car details"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                r.res_id,
+                r.customer_license_no,
+                r.car_id,
+                r.start_date,
+                r.end_date,
+                r.status,
+                c.first_name || ' ' || c.last_name as customer_name,
+                c.email as customer_email,
+                car.brand || ' ' || car.model as car_name
+            FROM public.reservations r
+            LEFT JOIN public.customers c ON r.customer_license_no = c.license_no
+            LEFT JOIN public.cars car ON r.car_id = car.car_id
+            ORDER BY r.start_date DESC
+        """).fetchall()
+
+    return [dict(row) for row in rows]
