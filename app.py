@@ -51,6 +51,10 @@ def serve_staff_css():
 def serve_index():
     return FileResponse("index.html")
 
+@app.get("/index.html")
+def serve_index_html():
+    return FileResponse("index.html")
+
 @app.get("/login.html")
 def serve_login():
     return FileResponse("login.html")
