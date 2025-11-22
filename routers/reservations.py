@@ -117,6 +117,37 @@ def list_reservations():
     return [dict(row) for row in rows]
 
 
+@router.get("/my_reservations")
+def my_reservations(authorization: Optional[str] = Header(None)):
+    """Get reservations for the authenticated customer"""
+    claims = verify_token(authorization)
+    if not claims:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    license_no = claims["sub"]
+
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                r.res_id,
+                r.car_id,
+                r.start_date,
+                r.end_date,
+                r.status,
+                car.brand || ' ' || car.model || ' ' || car.year as car_name,
+                car.photo_url,
+                inv.total_amount,
+                inv.payment_status
+            FROM public.reservations r
+            LEFT JOIN public.cars car ON r.car_id = car.car_id
+            LEFT JOIN public.invoices inv ON r.res_id = inv.reservation_id
+            WHERE r.customer_license_no = %(license)s
+            ORDER BY r.start_date DESC
+        """, {"license": license_no}).fetchall()
+
+    return [dict(row) for row in rows]
+
+
 @router.put("/{reservation_id}")
 def update_reservation_status(reservation_id: str, payload: ReservationStatusUpdate):
     """Update reservation status - staff only"""
