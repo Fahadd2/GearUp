@@ -38,29 +38,25 @@
 
 <!-- Reserves Modal -->
 <dialog id="reservesModal" class="modal">
-  <div class="modal__overlay"></div>
-  <div class="modal__content" style="max-width: 800px;">
-    <div class="modal__header">
-      <h2>My Reservations</h2>
-      <button class="modal__close" aria-label="Close">✕</button>
-    </div>
-    <div class="modal__body" id="reservesContent">
-      <p style="color: #64748b;">Loading...</p>
-    </div>
+  <div class="modal-header">
+    <button class="close" aria-label="Close">✕</button>
+    <h3>My Reservations</h3>
+    <p class="subtitle">View all your bookings</p>
+  </div>
+  <div class="modal-body" id="reservesContent">
+    <p style="color: #64748b;">Loading...</p>
   </div>
 </dialog>
 
 <!-- Information Modal -->
 <dialog id="infoModal" class="modal">
-  <div class="modal__overlay"></div>
-  <div class="modal__content" style="max-width: 600px;">
-    <div class="modal__header">
-      <h2>Account Information</h2>
-      <button class="modal__close" aria-label="Close">✕</button>
-    </div>
-    <div class="modal__body" id="infoContent">
-      <p style="color: #64748b;">Loading...</p>
-    </div>
+  <div class="modal-header">
+    <button class="close" aria-label="Close">✕</button>
+    <h3>Account Information</h3>
+    <p class="subtitle">Your profile details</p>
+  </div>
+  <div class="modal-body" id="infoContent">
+    <p style="color: #64748b;">Loading...</p>
   </div>
 </dialog>
 
@@ -731,12 +727,11 @@ function openInfoModal() {
   `;
 }
 
-// Close modals when clicking close button or overlay
+// Close modals when clicking close button or backdrop
 [reservesModal, infoModal].forEach(modal => {
   modal?.addEventListener("click", (e) => {
-    if (e.target.classList.contains("modal__overlay") ||
-        e.target.classList.contains("modal__close") ||
-        e.target.closest(".modal__close")) {
+    // Close if clicking backdrop (the dialog itself) or close button
+    if (e.target === modal || e.target.classList.contains("close") || e.target.closest(".close")) {
       modal.close();
     }
   });
