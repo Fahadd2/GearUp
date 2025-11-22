@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — Account Information</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
+  <script>
+    // Auth guard
+    (function () {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        location.replace("login.html");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- Top Nav -->
+<header class="nav">
+  <div class="container nav__inner">
+    <a class="brand" href="index.html">
+      <span class="logo">🚗</span><span class="name">GearUp</span>
+    </a>
+    <div class="nav__actions">
+      <span class="muted small" id="navGreeting"></span>
+      <button class="btn btn--ghost small" id="navSignOut">Sign out</button>
+      <a class="btn btn--ghost small" href="index.html">Back to Home</a>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<section style="padding: 60px 0; min-height: 80vh; background: #f6f8fb;">
+  <div class="container" style="max-width: 700px;">
+    <h1 style="margin-bottom: 12px;">Account Information</h1>
+    <p class="muted" style="margin-bottom: 32px;">Your profile details</p>
+
+    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div id="infoContainer">
+        <p style="color: #64748b;">Loading your information...</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container footer__inner">
+    <p>&copy; <span id="year"></span> GearUp. All rights reserved.</p>
+  </div>
+</footer>
+
+<div id="toasts" class="toasts"></div>
+
+<script>
+const API = API_BASE;
+
+// Auth
+const auth = {
+  get user() {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); }
+    catch { return null; }
+  },
+  get token() { return localStorage.getItem("token"); },
+  signOut() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
+};
+
+// UI
+const greet = document.getElementById("navGreeting");
+const signOut = document.getElementById("navSignOut");
+const year = document.getElementById("year");
+
+if (auth.user && auth.user.first_name) {
+  greet.textContent = `Hi, ${auth.user.first_name}`;
+}
+
+signOut?.addEventListener("click", () => {
+  auth.signOut();
+  location.replace("index.html");
+});
+
+year.textContent = new Date().getFullYear();
+
+// Load user information
+function loadUserInfo() {
+  const container = document.getElementById("infoContainer");
+  const user = auth.user;
+
+  if (!user) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px;">
+        <h3 style="color: #ef4444; margin-bottom: 8px;">Not signed in</h3>
+        <p class="muted">Please sign in to view your account information.</p>
+        <a href="login.html" class="btn btn--primary" style="margin-top: 16px;">Sign In</a>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display: grid; gap: 24px;">
+      <div>
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem;">${user.first_name || ''} ${user.last_name || ''}</p>
+      </div>
+
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">Email Address</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem;">${user.email || 'N/A'}</p>
+      </div>
+
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">Driver License Number</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem; font-family: monospace; background: #f9fafb; padding: 8px 12px; border-radius: 6px; display: inline-block;">${user.license_no || 'N/A'}</p>
+      </div>
+
+      ${user.phone ? `
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">Phone Number</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem;">${user.phone}</p>
+      </div>` : ''}
+
+      ${user.date_of_birth ? `
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">Date of Birth</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem;">${user.date_of_birth}</p>
+      </div>` : ''}
+
+      ${user.license_expiry ? `
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px;">License Expiry</label>
+        <p style="margin: 0; color: #1f2937; font-size: 1.125rem;">${user.license_expiry}</p>
+      </div>` : ''}
+    </div>
+
+    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+      <a href="showReserves.html" class="btn btn--primary" style="margin-right: 12px;">View My Reservations</a>
+      <a href="index.html" class="btn btn--ghost">Back to Home</a>
+    </div>
+  `;
+}
+
+// Load on page load
+document.addEventListener("DOMContentLoaded", loadUserInfo);
+</script>
+
+</body>
+</html>
