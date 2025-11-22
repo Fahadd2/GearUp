@@ -73,7 +73,18 @@
         const data = await r.json().catch(()=> ({}));
 
         if(!r.ok){
-          setMsg(data.detail || "Invalid email, password, or role.", "error");
+          // Handle error detail - it might be a string, object, or array
+          let errorMsg = "Invalid email, password, or role.";
+          if(data.detail){
+            if(typeof data.detail === "string"){
+              errorMsg = data.detail;
+            } else if(Array.isArray(data.detail) && data.detail.length > 0){
+              errorMsg = data.detail[0].msg || JSON.stringify(data.detail[0]);
+            } else if(typeof data.detail === "object"){
+              errorMsg = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+            }
+          }
+          setMsg(errorMsg, "error");
           return;
         }
 
