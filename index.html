@@ -25,7 +25,7 @@
     </div>
 
     <!-- Drawer inside nav for proper positioning -->
-    <div id="drawer" class="drawer">
+    <div id="drawer" class="drawer" style="display: none;">
       <a href="#cars">Browse Cars</a>
       <a id="drawerReserves" href="showReserves.html" hidden>Reserves</a>
       <a id="drawerInfo" href="showInformation.html" hidden>Information</a>
@@ -289,16 +289,29 @@ const drawer=document.getElementById("drawer");
 menu?.addEventListener("click",(e)=>{
   e.preventDefault();
   e.stopPropagation();
-  drawer.classList.toggle("open");
-  console.log("Drawer toggled. Is open:", drawer.classList.contains("open"));
-  console.log("Drawer classes:", drawer.className);
+
+  // Toggle using inline style instead of class
+  const isOpen = drawer.style.display === "flex";
+  if(isOpen) {
+    drawer.style.display = "none";
+    drawer.classList.remove("open");
+  } else {
+    drawer.style.display = "flex";
+    drawer.classList.add("open");
+  }
+
+  console.log("Drawer toggled. Display:", drawer.style.display);
 });
 
-drawer?.addEventListener("click",()=>drawer.classList.remove("open"));
+drawer?.addEventListener("click",()=>{
+  drawer.style.display = "none";
+  drawer.classList.remove("open");
+});
 
 // Close drawer when clicking outside
 document.addEventListener("click",(e)=>{
   if(drawer && !drawer.contains(e.target) && !menu.contains(e.target)){
+    drawer.style.display = "none";
     drawer.classList.remove("open");
   }
 });
