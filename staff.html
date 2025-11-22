@@ -29,9 +29,7 @@
         <span class="name">GearUp</span>
       </a>
       <nav class="nav__links">
-        <a href="index.html#cars">Browse</a>
-        <a href="index.html#how">How it Works</a>
-        <a href="index.html#contact">Contact</a>
+        <!-- Staff navigation - no public links -->
       </nav>
       <div class="nav__actions" style="gap:12px">
         <span id="roleBadge" class="badge">Staff</span>
@@ -68,37 +66,38 @@
 
   <main class="container">
     <div class="split">
-      <!-- Start / Close Rental -->
+      <!-- Change Car Availability -->
       <section class="panel">
         <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
-          <h3>Start / Close Rental</h3>
-          <span class="badge-soft">Reservations → Active → Completed</span>
+          <h3>Change Car Availability</h3>
+          <span class="badge-soft">Quick Status Update</span>
         </div>
         <p class="hint">
-          Paste a <strong>reservation_id</strong>. <strong>Start</strong> moves <em>Reserved → Active</em>.
-          <strong>Close</strong> moves <em>Active → Completed</em> and updates invoice totals.
+          Select a car and update its availability status. Useful for marking cars as in maintenance or back to available.
         </p>
 
         <div class="grid2">
           <label class="wfull">
-            <span class="lab">Reservation ID (e.g. RES-12)</span>
-            <input id="resId" placeholder="Paste reservation ID" required />
+            <span class="lab">Car</span>
+            <select id="carSelect" required>
+              <option value="">Loading cars...</option>
+            </select>
           </label>
-          <label>
-            <span class="lab">Damage Fee (SAR)</span>
-            <input id="damageFee" type="number" min="0" value="0" />
-          </label>
-          <label>
-            <span class="lab">Refuel Fee (SAR)</span>
-            <input id="refuelFee" type="number" min="0" value="0" />
+          <label class="wfull">
+            <span class="lab">New Status</span>
+            <select id="statusSelect">
+              <option value="Available">Available</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Rented">Rented</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
           </label>
         </div>
 
         <div class="row" style="margin-top:16px">
-          <button id="btnStart" class="btn btn--primary">Start Rental</button>
-          <button id="btnClose" class="btn btn--ghost">Close Rental</button>
+          <button id="btnUpdateStatus" class="btn btn--primary">Update Status</button>
         </div>
-        <div id="msg-rental" class="msg" aria-live="polite"></div>
+        <div id="msg-status" class="msg" aria-live="polite"></div>
       </section>
 
       <!-- Record Payment -->
@@ -237,50 +236,54 @@
     }
 
     // ---------- Actions ----------
-    async function startRental() {
-      const btn = $("#btnStart");
-      const resId = $("#resId").value.trim();
-      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
-      disable(btn, true); setMsg("msg-rental", "Starting rental…");
+    let carsCache = []; // Store cars for the select dropdown
+
+    async function updateCarStatus() {
+      const btn = $("#btnUpdateStatus");
+      const carId = $("#carSelect").value;
+      const status = $("#statusSelect").value;
+
+      if(!carId){ setMsg("msg-status", "Please select a car.", "error"); return; }
+
+      disable(btn, true); setMsg("msg-status", "Updating status…");
 
       try{
-        const r = await api("/rentals/start", {
-          method:"POST",
-          body: JSON.stringify({ reservation_id: resId })
+        const r = await api(`/cars/${carId}`, {
+          method:"PUT",
+          body: JSON.stringify({ status })
         });
         const data = await r.json().catch(()=> ({}));
-        if(!r.ok) throw new Error(data.detail || "Failed to start rental");
-        setMsg("msg-rental", "Rental started ✔", "ok");
-        toast("Rental started","ok");
+        if(!r.ok) throw new Error(data.detail || "Failed to update status");
+
+        setMsg("msg-status", `Car status updated to ${status} ✔`, "ok");
+        toast(`Car status updated to ${status}`, "ok");
+
+        // Refresh the car list
+        await loadCarsForStaff();
+        await populateCarSelect();
       }catch(err){
-        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
-      }finally{ disable(btn,false); }
+        setMsg("msg-status", err.message, "error");
+        toast(err.message,"err");
+      }finally{
+        disable(btn,false);
+      }
     }
 
-    async function closeRental() {
-      const btn = $("#btnClose");
-      const resId = $("#resId").value.trim();
-      const damage = Number($("#damageFee").value || 0);
-      const refuel = Number($("#refuelFee").value || 0);
-      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
-      disable(btn, true); setMsg("msg-rental", "Closing rental…");
+    async function populateCarSelect() {
+      const select = $("#carSelect");
+      try {
+        const res = await api("/cars", { method: "GET", headers: {} });
+        if (!res || !res.ok) throw new Error("Failed to load cars");
+        carsCache = await res.json();
 
-      try{
-        const r = await api("/rentals/close", {
-          method:"POST",
-          body: JSON.stringify({
-            reservation_id: resId,
-            damage_fee: isNaN(damage)?0:damage,
-            refuel_fee: isNaN(refuel)?0:refuel
-          })
-        });
-        const data = await r.json().catch(()=> ({}));
-        if(!r.ok) throw new Error(data.detail || "Failed to close rental");
-        setMsg("msg-rental", "Rental closed and invoice updated ✔", "ok");
-        toast("Rental closed","ok");
-      }catch(err){
-        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
-      }finally{ disable(btn,false); }
+        select.innerHTML = '<option value="">-- Select a car --</option>' +
+          carsCache.map(c =>
+            `<option value="${c.id}">${c.brand} ${c.model} (${c.year}) - Current: ${c.status}</option>`
+          ).join('');
+      } catch(err) {
+        select.innerHTML = '<option value="">Error loading cars</option>';
+        console.error("Error loading cars for select:", err);
+      }
     }
 
     async function recordPayment() {
@@ -418,18 +421,23 @@
 
     // ---------- Wire up ----------
     document.addEventListener("DOMContentLoaded", () => {
-      $("#btnStart").addEventListener("click", startRental);
-      $("#btnClose").addEventListener("click", closeRental);
+      $("#btnUpdateStatus").addEventListener("click", updateCarStatus);
+
       if (role === "admin") {
         const btnPay = document.getElementById("btnPay");
         if (btnPay) btnPay.addEventListener("click", recordPayment);
       }
+
       document.getElementById("reloadReservations").addEventListener("click", loadReservations);
-      document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
+      document.getElementById("reloadCars").addEventListener("click", async () => {
+        await loadCarsForStaff();
+        await populateCarSelect();
+      });
 
       loadKpis();
       loadReservations();
       loadCarsForStaff();
+      populateCarSelect();
     });
   </script>
 </body>
