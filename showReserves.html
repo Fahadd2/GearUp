@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GearUp — My Reservations</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
+  <script>
+    // Auth guard
+    (function () {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        location.replace("login.html");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- Top Nav -->
+<header class="nav">
+  <div class="container nav__inner">
+    <a class="brand" href="index.html">
+      <span class="logo">🚗</span><span class="name">GearUp</span>
+    </a>
+    <div class="nav__actions">
+      <span class="muted small" id="navGreeting"></span>
+      <button class="btn btn--ghost small" id="navSignOut">Sign out</button>
+      <a class="btn btn--ghost small" href="index.html">Back to Home</a>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<section style="padding: 60px 0; min-height: 80vh; background: #f6f8fb;">
+  <div class="container">
+    <h1 style="margin-bottom: 12px;">My Reservations</h1>
+    <p class="muted" style="margin-bottom: 32px;">View all your car rental bookings</p>
+
+    <div id="reservationsContainer">
+      <p style="color: #64748b;">Loading your reservations...</p>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container footer__inner">
+    <p>&copy; <span id="year"></span> GearUp. All rights reserved.</p>
+  </div>
+</footer>
+
+<div id="toasts" class="toasts"></div>
+
+<script>
+const API = API_BASE;
+
+// Auth
+const auth = {
+  get user() {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); }
+    catch { return null; }
+  },
+  get token() { return localStorage.getItem("token"); },
+  signOut() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  }
+};
+
+// UI
+const greet = document.getElementById("navGreeting");
+const signOut = document.getElementById("navSignOut");
+const year = document.getElementById("year");
+
+if (auth.user && auth.user.first_name) {
+  greet.textContent = `Hi, ${auth.user.first_name}`;
+}
+
+signOut?.addEventListener("click", () => {
+  auth.signOut();
+  location.replace("index.html");
+});
+
+year.textContent = new Date().getFullYear();
+
+// Load reservations
+async function loadReservations() {
+  const container = document.getElementById("reservationsContainer");
+
+  try {
+    const res = await fetch(`${API}/reservations/my_reservations`, {
+      headers: { "Authorization": `Bearer ${auth.token}` }
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        auth.signOut();
+        location.replace("login.html");
+        return;
+      }
+      throw new Error("Failed to load reservations");
+    }
+
+    const reservations = await res.json();
+
+    if (reservations.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px;">
+          <h3 style="color: #667085; margin-bottom: 8px;">No reservations yet</h3>
+          <p class="muted">When you book a car, your reservations will appear here.</p>
+          <a href="index.html#cars" class="btn btn--primary" style="margin-top: 16px;">Browse Cars</a>
+        </div>
+      `;
+      return;
+    }
+
+    const statusColors = {
+      'Reserved': { bg: '#dbeafe', color: '#1e40af' },
+      'Active': { bg: '#dcfce7', color: '#15803d' },
+      'Completed': { bg: '#f3f4f6', color: '#6b7280' }
+    };
+
+    container.innerHTML = reservations.map(r => {
+      const status = statusColors[r.status] || statusColors['Reserved'];
+      return `
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="margin: 0 0 4px 0; font-size: 1.25rem;">${r.car_name || 'N/A'}</h2>
+              <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">Reservation ID: <strong>${r.res_id}</strong></p>
+            </div>
+            <span style="background: ${status.bg}; color: ${status.color}; padding: 6px 16px; border-radius: 12px; font-size: 0.875rem; font-weight: 600;">${r.status}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; font-size: 0.95rem;">
+            <div>
+              <strong style="display: block; color: #374151; margin-bottom: 4px;">Pick-up Date</strong>
+              <span style="color: #6b7280;">${r.start_date}</span>
+            </div>
+            <div>
+              <strong style="display: block; color: #374151; margin-bottom: 4px;">Return Date</strong>
+              <span style="color: #6b7280;">${r.end_date}</span>
+            </div>
+            ${r.total_amount ? `
+            <div>
+              <strong style="display: block; color: #374151; margin-bottom: 4px;">Total Amount</strong>
+              <span style="color: #6b7280;">${Number(r.total_amount).toLocaleString()} SAR</span>
+            </div>` : ''}
+            ${r.payment_status ? `
+            <div>
+              <strong style="display: block; color: #374151; margin-bottom: 4px;">Payment Status</strong>
+              <span style="color: ${r.payment_status === 'paid' ? '#15803d' : '#b45309'}; text-transform: capitalize; font-weight: 600;">${r.payment_status}</span>
+            </div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error("Error loading reservations:", err);
+    container.innerHTML = `
+      <div style="text-align: center; padding: 60px 20px;">
+        <h3 style="color: #ef4444; margin-bottom: 8px;">Failed to load reservations</h3>
+        <p class="muted">${err.message}</p>
+        <button onclick="loadReservations()" class="btn btn--primary" style="margin-top: 16px;">Try Again</button>
+      </div>
+    `;
+  }
+}
+
+// Load on page load
+document.addEventListener("DOMContentLoaded", loadReservations);
+</script>
+
+</body>
+</html>
