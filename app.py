@@ -74,3 +74,11 @@ def serve_staff_login():
 @app.get("/staff.html")
 def serve_staff():
     return FileResponse("staff.html")
+
+@app.get("/showReserves.html")
+def serve_show_reserves():
+    return FileResponse("showReserves.html")
+
+@app.get("/showInformation.html")
+def serve_show_information():
+    return FileResponse("showInformation.html")

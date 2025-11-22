@@ -28,37 +28,13 @@
 
 <div id="drawer" class="drawer">
   <a href="#cars">Browse Cars</a>
-  <a id="drawerReserves" href="#" hidden>Reserves</a>
-  <a id="drawerInfo" href="#" hidden>Information</a>
+  <a id="drawerReserves" href="showReserves.html" hidden>Reserves</a>
+  <a id="drawerInfo" href="showInformation.html" hidden>Information</a>
   <a id="drawerSignIn" href="login.html">Sign In</a>
   <button id="drawerSignOut" class="btn btn--ghost" hidden>Sign out</button>
   <a class="btn btn--primary" href="signup.html">Get Started</a>
   <a href="staff.html" id="drawerStaff" hidden>Staff</a>
 </div>
-
-<!-- Reserves Modal -->
-<dialog id="reservesModal" class="modal">
-  <div class="modal-header">
-    <button class="close" aria-label="Close">✕</button>
-    <h3>My Reservations</h3>
-    <p class="subtitle">View all your bookings</p>
-  </div>
-  <div class="modal-body" id="reservesContent">
-    <p style="color: #64748b;">Loading...</p>
-  </div>
-</dialog>
-
-<!-- Information Modal -->
-<dialog id="infoModal" class="modal">
-  <div class="modal-header">
-    <button class="close" aria-label="Close">✕</button>
-    <h3>Account Information</h3>
-    <p class="subtitle">Your profile details</p>
-  </div>
-  <div class="modal-body" id="infoContent">
-    <p style="color: #64748b;">Loading...</p>
-  </div>
-</dialog>
 
 <!-- Hero -->
 <section class="hero">
@@ -308,24 +284,9 @@ const btnClose=document.getElementById("btnClose");
 // Nav drawer
 const menu=document.getElementById("menu");
 const drawer=document.getElementById("drawer");
-const reservesModal=document.getElementById("reservesModal");
-const infoModal=document.getElementById("infoModal");
 
 menu?.addEventListener("click",()=>drawer.classList.toggle("open"));
-drawer?.addEventListener("click",(e)=>{
-  // Don't close if clicking on Reserves or Info links
-  if(e.target.id === "drawerReserves" || e.target.id === "drawerInfo") {
-    e.preventDefault();
-    drawer.classList.remove("open");
-    if(e.target.id === "drawerReserves") {
-      openReservesModal();
-    } else {
-      openInfoModal();
-    }
-    return;
-  }
-  drawer.classList.remove("open");
-});
+drawer?.addEventListener("click",()=>drawer.classList.remove("open"));
 
 // Footer year
 year.textContent=new Date().getFullYear();
@@ -640,102 +601,6 @@ btnConfirm.addEventListener("click",async()=>{
 
 btnCancel.addEventListener("click",()=>modal.close());
 btnClose.addEventListener("click",()=>modal.close());
-
-// ========= RESERVES & INFO MODALS =========
-async function openReservesModal() {
-  const content = document.getElementById("reservesContent");
-  content.innerHTML = "<p style='color: #64748b;'>Loading your reservations...</p>";
-  reservesModal.showModal();
-
-  try {
-    const a = getAuth();
-    if (!a) {
-      content.innerHTML = "<p class='muted'>Please sign in to view your reservations.</p>";
-      return;
-    }
-
-    const res = await fetch(`${API}/reservations/my_reservations`, {
-      headers: { "Authorization": `Bearer ${a.token}` }
-    });
-
-    if (!res.ok) throw new Error("Failed to load reservations");
-    const reservations = await res.json();
-
-    if (reservations.length === 0) {
-      content.innerHTML = "<p class='muted'>You don't have any reservations yet.</p>";
-      return;
-    }
-
-    const statusColors = {
-      'Reserved': 'background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-size: 0.875rem;',
-      'Active': 'background: #dcfce7; color: #15803d; padding: 4px 12px; border-radius: 12px; font-size: 0.875rem;',
-      'Completed': 'background: #f3f4f6; color: #6b7280; padding: 4px 12px; border-radius: 12px; font-size: 0.875rem;'
-    };
-
-    content.innerHTML = reservations.map(r => `
-      <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-          <div>
-            <h3 style="margin: 0 0 4px 0;">${r.car_name || 'N/A'}</h3>
-            <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">Reservation ID: ${r.res_id}</p>
-          </div>
-          <span style="${statusColors[r.status] || statusColors['Reserved']}">${r.status}</span>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; font-size: 0.875rem;">
-          <div><strong>Pick-up:</strong> ${r.start_date}</div>
-          <div><strong>Return:</strong> ${r.end_date}</div>
-          ${r.total_amount ? `<div><strong>Total:</strong> ${Number(r.total_amount).toLocaleString()} SAR</div>` : ''}
-          ${r.payment_status ? `<div><strong>Payment:</strong> ${r.payment_status}</div>` : ''}
-        </div>
-      </div>
-    `).join('');
-  } catch (err) {
-    content.innerHTML = `<p class='muted' style='color: #ef4444;'>Error loading reservations: ${err.message}</p>`;
-  }
-}
-
-function openInfoModal() {
-  const content = document.getElementById("infoContent");
-  infoModal.showModal();
-
-  const user = auth.user;
-  if (!user) {
-    content.innerHTML = "<p class='muted'>Not signed in.</p>";
-    return;
-  }
-
-  content.innerHTML = `
-    <div style="display: grid; gap: 16px;">
-      <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #374151;">Name</label>
-        <p style="margin: 0; color: #6b7280;">${user.first_name || ''} ${user.last_name || ''}</p>
-      </div>
-      <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #374151;">Email</label>
-        <p style="margin: 0; color: #6b7280;">${user.email || 'N/A'}</p>
-      </div>
-      <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #374151;">License Number</label>
-        <p style="margin: 0; color: #6b7280;">${user.license_no || 'N/A'}</p>
-      </div>
-      ${user.phone ? `
-      <div>
-        <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #374151;">Phone</label>
-        <p style="margin: 0; color: #6b7280;">${user.phone}</p>
-      </div>` : ''}
-    </div>
-  `;
-}
-
-// Close modals when clicking close button or backdrop
-[reservesModal, infoModal].forEach(modal => {
-  modal?.addEventListener("click", (e) => {
-    // Close if clicking backdrop (the dialog itself) or close button
-    if (e.target === modal || e.target.classList.contains("close") || e.target.closest(".close")) {
-      modal.close();
-    }
-  });
-});
 
 // ========= INITIALIZATION =========
 document.addEventListener("DOMContentLoaded", () => {
