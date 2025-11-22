@@ -196,14 +196,16 @@ button.menu:hover,
   background: #fff;
   position: absolute;
   top: 100%;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  max-width: 100%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
 }
 
 .drawer.open {
-  display: flex;
+  display: flex !important;
 }
 
 .drawer a {
@@ -222,6 +224,17 @@ button.menu:hover,
 .drawer button {
   text-align: left;
   width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.drawer button:hover {
+  background: #f9fafb;
 }
 
 /* ===== Hero Section ===== */
