@@ -57,6 +57,7 @@ a {
   align-items: center;
   justify-content: space-between;
   height: 68px;
+  position: relative;
 }
 
 .brand {
@@ -90,11 +91,18 @@ a {
 }
 
 .menu {
-  display: none;
+  display: inline-block !important;
   border: 0;
   background: none;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   cursor: pointer;
+  padding: 0.5rem;
+  color: var(--primary);
+  transition: transform 0.2s ease;
+}
+
+.menu:hover {
+  transform: scale(1.1);
 }
 
 .muted {
@@ -185,12 +193,34 @@ a {
   padding: 1rem;
   border-top: 1px solid var(--line);
   background: #fff;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.drawer.open {
+  display: flex;
 }
 
 .drawer a {
-  padding: 0.6rem 0;
+  padding: 0.6rem 1rem;
   border-bottom: 1px solid #f1f5f9;
   font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.drawer a:hover {
+  background: #f9fafb;
+}
+
+.drawer button {
+  text-align: left;
+  width: 100%;
 }
 
 /* ===== Hero Section ===== */
@@ -912,14 +942,6 @@ a {
 @media (max-width: 640px) {
   .nav__links {
     display: none;
-  }
-  
-  .menu {
-    display: inline;
-  }
-  
-  .drawer {
-    display: flex;
   }
   
   .searchbar {
