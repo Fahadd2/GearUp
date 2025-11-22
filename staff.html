@@ -66,30 +66,26 @@
 
   <main class="container">
     <div class="split">
-      <!-- Change Car Availability -->
+      <!-- Change Reservation Status -->
       <section class="panel">
-        <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
-          <h3>Change Car Availability</h3>
-          <span class="badge-soft">Quick Status Update</span>
-        </div>
+        <h3 style="margin-bottom: 12px;">Change Reservation Status</h3>
         <p class="hint">
-          Select a car and update its availability status. Useful for marking cars as in maintenance or back to available.
+          Select a reservation and update its status (Reserved, Active, or Completed).
         </p>
 
         <div class="grid2">
           <label class="wfull">
-            <span class="lab">Car</span>
-            <select id="carSelect" required>
-              <option value="">Loading cars...</option>
+            <span class="lab">Reservation</span>
+            <select id="reservationSelect" required>
+              <option value="">Loading reservations...</option>
             </select>
           </label>
           <label class="wfull">
             <span class="lab">New Status</span>
             <select id="statusSelect">
-              <option value="Available">Available</option>
               <option value="Reserved">Reserved</option>
-              <option value="Rented">Rented</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
             </select>
           </label>
         </div>
@@ -236,31 +232,31 @@
     }
 
     // ---------- Actions ----------
-    let carsCache = []; // Store cars for the select dropdown
+    let reservationsCache = []; // Store reservations for the select dropdown
 
-    async function updateCarStatus() {
+    async function updateReservationStatus() {
       const btn = $("#btnUpdateStatus");
-      const carId = $("#carSelect").value;
+      const reservationId = $("#reservationSelect").value;
       const status = $("#statusSelect").value;
 
-      if(!carId){ setMsg("msg-status", "Please select a car.", "error"); return; }
+      if(!reservationId){ setMsg("msg-status", "Please select a reservation.", "error"); return; }
 
       disable(btn, true); setMsg("msg-status", "Updating status…");
 
       try{
-        const r = await api(`/cars/${carId}`, {
+        const r = await api(`/reservations/${reservationId}`, {
           method:"PUT",
           body: JSON.stringify({ status })
         });
         const data = await r.json().catch(()=> ({}));
         if(!r.ok) throw new Error(data.detail || "Failed to update status");
 
-        setMsg("msg-status", `Car status updated to ${status} ✔`, "ok");
-        toast(`Car status updated to ${status}`, "ok");
+        setMsg("msg-status", `Reservation status updated to ${status} ✔`, "ok");
+        toast(`Reservation status updated to ${status}`, "ok");
 
-        // Refresh the car list
-        await loadCarsForStaff();
-        await populateCarSelect();
+        // Refresh the reservation list
+        await loadReservations();
+        await populateReservationSelect();
       }catch(err){
         setMsg("msg-status", err.message, "error");
         toast(err.message,"err");
@@ -269,20 +265,20 @@
       }
     }
 
-    async function populateCarSelect() {
-      const select = $("#carSelect");
+    async function populateReservationSelect() {
+      const select = $("#reservationSelect");
       try {
-        const res = await api("/cars", { method: "GET", headers: {} });
-        if (!res || !res.ok) throw new Error("Failed to load cars");
-        carsCache = await res.json();
+        const res = await api("/reservations", { method: "GET" });
+        if (!res || !res.ok) throw new Error("Failed to load reservations");
+        reservationsCache = await res.json();
 
-        select.innerHTML = '<option value="">-- Select a car --</option>' +
-          carsCache.map(c =>
-            `<option value="${c.id}">${c.brand} ${c.model} (${c.year}) - Current: ${c.status}</option>`
+        select.innerHTML = '<option value="">-- Select a reservation --</option>' +
+          reservationsCache.map(r =>
+            `<option value="${r.res_id}">${r.res_id} - ${r.customer_name || 'N/A'} (${r.car_name || r.car_id}) - ${r.status}</option>`
           ).join('');
       } catch(err) {
-        select.innerHTML = '<option value="">Error loading cars</option>';
-        console.error("Error loading cars for select:", err);
+        select.innerHTML = '<option value="">Error loading reservations</option>';
+        console.error("Error loading reservations for select:", err);
       }
     }
 
@@ -421,23 +417,23 @@
 
     // ---------- Wire up ----------
     document.addEventListener("DOMContentLoaded", () => {
-      $("#btnUpdateStatus").addEventListener("click", updateCarStatus);
+      $("#btnUpdateStatus").addEventListener("click", updateReservationStatus);
 
       if (role === "admin") {
         const btnPay = document.getElementById("btnPay");
         if (btnPay) btnPay.addEventListener("click", recordPayment);
       }
 
-      document.getElementById("reloadReservations").addEventListener("click", loadReservations);
-      document.getElementById("reloadCars").addEventListener("click", async () => {
-        await loadCarsForStaff();
-        await populateCarSelect();
+      document.getElementById("reloadReservations").addEventListener("click", async () => {
+        await loadReservations();
+        await populateReservationSelect();
       });
+      document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
 
       loadKpis();
       loadReservations();
       loadCarsForStaff();
-      populateCarSelect();
+      populateReservationSelect();
     });
   </script>
 </body>

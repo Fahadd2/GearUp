@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Optional, Literal
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, field_validator
 from db import get_conn
@@ -26,6 +26,10 @@ class ReserveAuthedIn(BaseModel):
         if start and v <= start:
             raise ValueError("end_date must be after start_date")
         return v
+
+
+class ReservationStatusUpdate(BaseModel):
+    status: Literal["Reserved", "Active", "Completed"]
 
 
 def _calc_total(conn, car_id: str, start: date, end: date) -> float:
@@ -111,3 +115,25 @@ def list_reservations():
         """).fetchall()
 
     return [dict(row) for row in rows]
+
+
+@router.put("/{reservation_id}")
+def update_reservation_status(reservation_id: str, payload: ReservationStatusUpdate):
+    """Update reservation status - staff only"""
+    with get_conn() as conn:
+        # Check if reservation exists
+        row = conn.execute(
+            "SELECT res_id, status FROM public.reservations WHERE res_id = %(rid)s",
+            {"rid": reservation_id}
+        ).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Reservation not found")
+
+        # Update status
+        conn.execute(
+            "UPDATE public.reservations SET status = %(status)s WHERE res_id = %(rid)s",
+            {"status": payload.status, "rid": reservation_id}
+        )
+
+    return {"ok": True, "message": f"Reservation status updated to {payload.status}"}
