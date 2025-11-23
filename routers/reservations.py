@@ -29,7 +29,7 @@ class ReserveAuthedIn(BaseModel):
 
 
 class ReservationStatusUpdate(BaseModel):
-    status: Literal["Reserved", "Active", "Completed"]
+    status: Literal["Reserved", "Active", "Completed", "Cancelled"]
 
 
 def _calc_total(conn, car_id: str, start: date, end: date) -> float:
@@ -185,8 +185,8 @@ def update_reservation_status(reservation_id: str, payload: ReservationStatusUpd
                 "UPDATE public.cars SET status = 'Rented' WHERE car_id = %(car_id)s",
                 {"car_id": row["car_id"]}
             )
-        elif payload.status == "Completed":
-            # Customer returned the car, set back to Available
+        elif payload.status == "Completed" or payload.status == "Cancelled":
+            # Customer returned the car or reservation cancelled, set back to Available
             conn.execute(
                 "UPDATE public.cars SET status = 'Available' WHERE car_id = %(car_id)s",
                 {"car_id": row["car_id"]}
@@ -203,22 +203,29 @@ def update_reservation_status(reservation_id: str, payload: ReservationStatusUpd
 
 @router.post("/auto_update_statuses")
 def auto_update_expired_reservations():
-    """Automatically update expired reservations to Completed and set cars to Available"""
+    """Automatically update expired reservations based on payment status"""
     with get_conn() as conn:
-        # Find all Active reservations where end_date < today
+        # Find all Active reservations where end_date < today with their payment status
         expired = conn.execute("""
-            SELECT res_id, car_id
-            FROM public.reservations
-            WHERE status = 'Active'
-              AND end_date < CURRENT_DATE
+            SELECT r.res_id, r.car_id, COALESCE(inv.payment_status, 'unpaid') as payment_status
+            FROM public.reservations r
+            LEFT JOIN public.invoices inv ON r.res_id = inv.reservation_id
+            WHERE r.status = 'Active'
+              AND r.end_date < CURRENT_DATE
         """).fetchall()
 
         updated_count = 0
         for reservation in expired:
-            # Update reservation to Completed
+            # Determine new status based on payment
+            if reservation["payment_status"] == "paid":
+                new_status = "Completed"
+            else:
+                new_status = "Cancelled"
+
+            # Update reservation status
             conn.execute(
-                "UPDATE public.reservations SET status = 'Completed' WHERE res_id = %(rid)s",
-                {"rid": reservation["res_id"]}
+                "UPDATE public.reservations SET status = %(status)s WHERE res_id = %(rid)s",
+                {"status": new_status, "rid": reservation["res_id"]}
             )
             # Set car back to Available
             conn.execute(
