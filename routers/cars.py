@@ -3,6 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 from db import get_conn
 
 router = APIRouter(prefix="/cars", tags=["cars"])
@@ -23,6 +24,8 @@ def list_cars(
     transmission: str | None = None,
     min_price: float | None = None,
     max_price: float | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ):
     sql = """
       SELECT
@@ -58,6 +61,19 @@ def list_cars(
     if max_price is not None:
         where.append("AND price_per_day <= %(pmax)s")
         params["pmax"] = max_price
+
+    # Filter out cars with overlapping reservations
+    if start_date and end_date:
+        where.append("""
+            AND car_id NOT IN (
+                SELECT car_id
+                FROM public.reservations
+                WHERE status IN ('Reserved', 'Active')
+                  AND NOT (%(end)s <= start_date OR %(start)s >= end_date)
+            )
+        """)
+        params["start"] = start_date
+        params["end"] = end_date
 
     sql += " ".join(where) + " ORDER BY price_per_day, brand, model"
 
