@@ -133,7 +133,7 @@
         <h3>Reservations</h3>
         <button id="reloadReservations" class="btn btn--outline small">⟳ Refresh</button>
       </div>
-      <p class="hint">View all reservations. Copy reservation IDs to start or close rentals.</p>
+      <p class="hint">View all reservations. Copy reservation IDs to start or close rentals, and invoice IDs to record payments.</p>
       <div id="reservationList" style="overflow-x: auto;"></div>
     </section>
 
@@ -329,7 +329,8 @@
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
-                <th style="padding: 12px;">ID</th>
+                <th style="padding: 12px;">Reservation ID</th>
+                <th style="padding: 12px;">Invoice ID</th>
                 <th style="padding: 12px;">Customer</th>
                 <th style="padding: 12px;">Car</th>
                 <th style="padding: 12px;">Start Date</th>
@@ -341,6 +342,7 @@
               ${reservations.map(r => `
                 <tr style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 12px;"><strong>${r.res_id}</strong></td>
+                  <td style="padding: 12px;"><strong>${r.inv_id || 'N/A'}</strong></td>
                   <td style="padding: 12px;">
                     ${r.customer_name || 'N/A'}<br>
                     <small class="muted">${r.customer_email || ''}</small>

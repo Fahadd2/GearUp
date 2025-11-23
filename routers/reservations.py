@@ -107,10 +107,12 @@ def list_reservations():
                 r.status,
                 c.first_name || ' ' || c.last_name as customer_name,
                 c.email as customer_email,
-                car.brand || ' ' || car.model as car_name
+                car.brand || ' ' || car.model as car_name,
+                inv.inv_id
             FROM public.reservations r
             LEFT JOIN public.customers c ON r.customer_license_no = c.license_no
             LEFT JOIN public.cars car ON r.car_id = car.car_id
+            LEFT JOIN public.invoices inv ON r.res_id = inv.reservation_id
             ORDER BY r.start_date DESC
         """).fetchall()
 
