@@ -29,9 +29,7 @@
         <span class="name">GearUp</span>
       </a>
       <nav class="nav__links">
-        <a href="index.html#cars">Browse</a>
-        <a href="index.html#how">How it Works</a>
-        <a href="index.html#contact">Contact</a>
+        <!-- Staff navigation - no public links -->
       </nav>
       <div class="nav__actions" style="gap:12px">
         <span id="roleBadge" class="badge">Staff</span>
@@ -68,37 +66,35 @@
 
   <main class="container">
     <div class="split">
-      <!-- Start / Close Rental -->
+      <!-- Change Reservation Status -->
       <section class="panel">
-        <div class="row" style="justify-content:space-between; margin-bottom: 12px;">
-          <h3>Start / Close Rental</h3>
-          <span class="badge-soft">Reservations → Active → Completed</span>
-        </div>
+        <h3 style="margin-bottom: 12px;">Change Reservation Status</h3>
         <p class="hint">
-          Paste a <strong>reservation_id</strong>. <strong>Start</strong> moves <em>Reserved → Active</em>.
-          <strong>Close</strong> moves <em>Active → Completed</em> and updates invoice totals.
+          Select a reservation and update its status (Reserved, Active, or Completed).
         </p>
 
         <div class="grid2">
           <label class="wfull">
-            <span class="lab">Reservation ID (e.g. RES-12)</span>
-            <input id="resId" placeholder="Paste reservation ID" required />
+            <span class="lab">Reservation</span>
+            <select id="reservationSelect" required>
+              <option value="">Loading reservations...</option>
+            </select>
           </label>
-          <label>
-            <span class="lab">Damage Fee (SAR)</span>
-            <input id="damageFee" type="number" min="0" value="0" />
-          </label>
-          <label>
-            <span class="lab">Refuel Fee (SAR)</span>
-            <input id="refuelFee" type="number" min="0" value="0" />
+          <label class="wfull">
+            <span class="lab">New Status</span>
+            <select id="statusSelect">
+              <option value="Reserved">Reserved</option>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
           </label>
         </div>
 
         <div class="row" style="margin-top:16px">
-          <button id="btnStart" class="btn btn--primary">Start Rental</button>
-          <button id="btnClose" class="btn btn--ghost">Close Rental</button>
+          <button id="btnUpdateStatus" class="btn btn--primary">Update Status</button>
         </div>
-        <div id="msg-rental" class="msg" aria-live="polite"></div>
+        <div id="msg-status" class="msg" aria-live="polite"></div>
       </section>
 
       <!-- Record Payment -->
@@ -132,13 +128,15 @@
       </section>
     </div>
 
-    <div class="row" style="margin-top:24px; justify-content:space-between; align-items: center;">
-      <div class="row" style="gap:12px">
-        <button id="btnRefresh" class="btn btn--outline small">⟳ Refresh</button>
-        <span id="health" class="muted small"></span>
+    <!-- Reservations -->
+    <section class="panel" style="margin-top: 32px">
+      <div class="row" style="justify-content: space-between; margin-bottom: 16px;">
+        <h3>Reservations</h3>
+        <button id="reloadReservations" class="btn btn--outline small">⟳ Refresh</button>
       </div>
-      <small class="muted">Tip: copy/paste IDs from the Reservations/Invoices pages.</small>
-    </div>
+      <p class="hint">View all reservations. Copy reservation IDs to start or close rentals, and invoice IDs to record payments.</p>
+      <div id="reservationList" style="overflow-x: auto;"></div>
+    </section>
 
     <!-- Manage Cars -->
     <section class="panel" style="margin-top: 32px">
@@ -209,14 +207,16 @@
       return r;
     }
 
-    // ---------- Health + KPIs ----------
-    async function checkHealth() {
+    // ---------- Auto-update expired reservations ----------
+    async function autoUpdateStatuses(){
       try {
-        const r = await api("/health", {headers:{}}); // simple GET
-        $("#health").textContent = (r && r.ok) ? "API: connected" : "API: error";
-      } catch { $("#health").textContent = "API: error"; }
+        await api("/reservations/auto_update_statuses", { method: "POST" });
+      } catch {
+        // Silent fail - this is a background task
+      }
     }
-    
+
+    // ---------- KPIs ----------
     async function loadKpis(){
       try {
         const r = await api("/dashboard/kpis");
@@ -242,50 +242,54 @@
     }
 
     // ---------- Actions ----------
-    async function startRental() {
-      const btn = $("#btnStart");
-      const resId = $("#resId").value.trim();
-      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
-      disable(btn, true); setMsg("msg-rental", "Starting rental…");
+    let reservationsCache = []; // Store reservations for the select dropdown
+
+    async function updateReservationStatus() {
+      const btn = $("#btnUpdateStatus");
+      const reservationId = $("#reservationSelect").value;
+      const status = $("#statusSelect").value;
+
+      if(!reservationId){ setMsg("msg-status", "Please select a reservation.", "error"); return; }
+
+      disable(btn, true); setMsg("msg-status", "Updating status…");
 
       try{
-        const r = await api("/rentals/start", {
-          method:"POST",
-          body: JSON.stringify({ reservation_id: resId })
+        const r = await api(`/reservations/${reservationId}`, {
+          method:"PUT",
+          body: JSON.stringify({ status })
         });
         const data = await r.json().catch(()=> ({}));
-        if(!r.ok) throw new Error(data.detail || "Failed to start rental");
-        setMsg("msg-rental", "Rental started ✔", "ok");
-        toast("Rental started","ok");
+        if(!r.ok) throw new Error(data.detail || "Failed to update status");
+
+        setMsg("msg-status", `Reservation status updated to ${status} ✔`, "ok");
+        toast(`Reservation status updated to ${status}`, "ok");
+
+        // Refresh the reservation list
+        await loadReservations();
+        await populateReservationSelect();
       }catch(err){
-        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
-      }finally{ disable(btn,false); }
+        setMsg("msg-status", err.message, "error");
+        toast(err.message,"err");
+      }finally{
+        disable(btn,false);
+      }
     }
 
-    async function closeRental() {
-      const btn = $("#btnClose");
-      const resId = $("#resId").value.trim();
-      const damage = Number($("#damageFee").value || 0);
-      const refuel = Number($("#refuelFee").value || 0);
-      if(!resId){ setMsg("msg-rental", "Reservation ID is required.", "error"); return; }
-      disable(btn, true); setMsg("msg-rental", "Closing rental…");
+    async function populateReservationSelect() {
+      const select = $("#reservationSelect");
+      try {
+        const res = await api("/reservations", { method: "GET" });
+        if (!res || !res.ok) throw new Error("Failed to load reservations");
+        reservationsCache = await res.json();
 
-      try{
-        const r = await api("/rentals/close", {
-          method:"POST",
-          body: JSON.stringify({
-            reservation_id: resId,
-            damage_fee: isNaN(damage)?0:damage,
-            refuel_fee: isNaN(refuel)?0:refuel
-          })
-        });
-        const data = await r.json().catch(()=> ({}));
-        if(!r.ok) throw new Error(data.detail || "Failed to close rental");
-        setMsg("msg-rental", "Rental closed and invoice updated ✔", "ok");
-        toast("Rental closed","ok");
-      }catch(err){
-        setMsg("msg-rental", err.message, "error"); toast(err.message,"err");
-      }finally{ disable(btn,false); }
+        select.innerHTML = '<option value="">-- Select a reservation --</option>' +
+          reservationsCache.map(r =>
+            `<option value="${r.res_id}">${r.res_id} - ${r.customer_name || 'N/A'} (${r.car_name || r.car_id}) - ${r.status}</option>`
+          ).join('');
+      } catch(err) {
+        select.innerHTML = '<option value="">Error loading reservations</option>';
+        console.error("Error loading reservations for select:", err);
+      }
     }
 
     async function recordPayment() {
@@ -309,6 +313,72 @@
       }catch(err){
         setMsg("msg-pay", err.message, "error"); toast(err.message,"err");
       }finally{ disable(btn,false); }
+    }
+
+    // ---------- Reservations ----------
+    async function loadReservations() {
+      const list = document.getElementById("reservationList");
+      list.innerHTML = "<p style='color: #64748b;'>Loading reservations...</p>";
+      try {
+        const res = await api("/reservations", { method: "GET" });
+        if (!res || !res.ok) throw new Error("Failed to load reservations");
+        const reservations = await res.json();
+
+        if (reservations.length === 0) {
+          list.innerHTML = "<p class='muted'>No reservations found.</p>";
+          return;
+        }
+
+        const statusColors = {
+          'Reserved': 'badge-soft',
+          'Active': 'badge',
+          'Completed': 'muted',
+          'Cancelled': 'muted'
+        };
+
+        list.innerHTML = `
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
+                <th style="padding: 12px;">Reservation ID</th>
+                <th style="padding: 12px;">Invoice ID</th>
+                <th style="padding: 12px;">Amount (SAR)</th>
+                <th style="padding: 12px;">Payment</th>
+                <th style="padding: 12px;">Customer</th>
+                <th style="padding: 12px;">Car</th>
+                <th style="padding: 12px;">Start Date</th>
+                <th style="padding: 12px;">End Date</th>
+                <th style="padding: 12px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reservations.map(r => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 12px;"><strong>${r.res_id}</strong></td>
+                  <td style="padding: 12px;"><strong>${r.inv_id || 'N/A'}</strong></td>
+                  <td style="padding: 12px;">${r.total_amount ? r.total_amount.toFixed(2) : 'N/A'}</td>
+                  <td style="padding: 12px;">
+                    <span class="${r.payment_status === 'paid' ? 'badge' : 'badge-soft'}">${r.payment_status || 'N/A'}</span>
+                  </td>
+                  <td style="padding: 12px;">
+                    ${r.customer_name || 'N/A'}<br>
+                    <small class="muted">${r.customer_email || ''}</small>
+                  </td>
+                  <td style="padding: 12px;">${r.car_name || r.car_id}</td>
+                  <td style="padding: 12px;">${r.start_date}</td>
+                  <td style="padding: 12px;">${r.end_date}</td>
+                  <td style="padding: 12px;">
+                    <span class="${statusColors[r.status] || 'badge-soft'}">${r.status}</span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        list.innerHTML = "<p class='msg error'>Failed to load reservations.</p>";
+        console.error("Error loading reservations:", err);
+      }
     }
 
     // ---------- Manage Cars ----------
@@ -366,18 +436,31 @@
 
     // ---------- Wire up ----------
     document.addEventListener("DOMContentLoaded", () => {
-      $("#btnStart").addEventListener("click", startRental);
-      $("#btnClose").addEventListener("click", closeRental);
+      $("#btnUpdateStatus").addEventListener("click", updateReservationStatus);
+
       if (role === "admin") {
         const btnPay = document.getElementById("btnPay");
         if (btnPay) btnPay.addEventListener("click", recordPayment);
       }
-      document.getElementById("btnRefresh").addEventListener("click", () => { checkHealth(); setKpiPlaceholders(); });
-      document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
 
-      checkHealth();
-      setKpiPlaceholders();
-      loadCarsForStaff();
+      document.getElementById("reloadReservations").addEventListener("click", async () => {
+        await autoUpdateStatuses();
+        await loadReservations();
+        await populateReservationSelect();
+      });
+      document.getElementById("reloadCars").addEventListener("click", async () => {
+        await autoUpdateStatuses();
+        await loadCarsForStaff();
+      });
+
+      // Initial load
+      (async () => {
+        await autoUpdateStatuses();
+        loadKpis();
+        loadReservations();
+        loadCarsForStaff();
+        populateReservationSelect();
+      })();
     });
   </script>
 </body>

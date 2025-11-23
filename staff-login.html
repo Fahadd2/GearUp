@@ -60,25 +60,47 @@
       setMsg("Signing in…");
 
       const form = e.currentTarget;
-      const values = Object.fromEntries(new FormData(form).entries());
-      values.role = String(values.role || "").toLowerCase();
+      const formData = new FormData(form);
+
+      // Build clean payload matching backend StaffLoginIn model
+      const payload = {
+        email: String(formData.get("email") || "").trim(),
+        password: String(formData.get("password") || ""),
+        role: String(formData.get("role") || "").trim().toLowerCase()
+      };
+
+      console.log("Staff login payload:", payload);
 
       try{
         const r = await fetch(`${API_BASE}/auth/staff_login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values)
+          body: JSON.stringify(payload)
         });
 
         const data = await r.json().catch(()=> ({}));
 
         if(!r.ok){
-          setMsg(data.detail || "Invalid email, password, or role.", "error");
+          console.error("Login failed:", r.status, data);
+          // Handle error detail - it might be a string, object, or array
+          let errorMsg = "Invalid email, password, or role.";
+          if(data.detail){
+            if(typeof data.detail === "string"){
+              errorMsg = data.detail;
+            } else if(Array.isArray(data.detail) && data.detail.length > 0){
+              // Pydantic validation errors are arrays - show first error
+              const firstErr = data.detail[0];
+              errorMsg = firstErr.msg || `Validation error at ${firstErr.loc?.join('.')}`;
+            } else if(typeof data.detail === "object"){
+              errorMsg = data.detail.message || data.detail.msg || JSON.stringify(data.detail);
+            }
+          }
+          setMsg(errorMsg, "error");
           return;
         }
 
         localStorage.setItem("staffToken", data.token);
-        localStorage.setItem("staffRole", (data.employee?.role || values.role || "").toLowerCase());
+        localStorage.setItem("staffRole", (data.employee?.role || payload.role || "").toLowerCase());
         localStorage.setItem("staffUser", JSON.stringify(data.employee || {}));
 
         setMsg("Signed in ✓ Redirecting…", "ok");

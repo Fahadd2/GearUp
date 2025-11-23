@@ -17,22 +17,25 @@
 
     <div class="nav__actions">
       <span class="muted small" id="navGreeting" hidden></span>
-      <a class="muted small" id="navSignIn" href="login.html">Sign In</a>
-      <button class="btn btn--ghost small" id="navSignOut" hidden>Sign out</button>
-      <a class="btn btn--primary small" href="signup.html">Get Started</a>
-      <a class="btn btn--ghost small" href="staff.html" id="navStaff" hidden>Staff</a>
-      <button id="menu" class="menu" aria-label="Open menu">☰</button>
+      <a class="muted small" id="navSignIn" href="login.html" style="display: inline;">Sign In</a>
+      <button class="btn btn--ghost small" id="navSignOut" style="display: none;">Sign out</button>
+      <a class="btn btn--primary small" id="navGetStarted" href="signup.html" style="display: inline-block;">Get Started</a>
+      <a class="btn btn--ghost small" href="staff.html" id="navStaff" style="display: none;">Staff</a>
+      <button id="menu" class="menu" aria-label="Open menu" style="display: inline-block;">☰</button>
     </div>
   </div>
-</header>
 
-<div id="drawer" class="drawer">
-  <a href="#cars">Browse Cars</a>
-  <a id="drawerSignIn" href="login.html">Sign In</a>
-  <button id="drawerSignOut" class="btn btn--ghost" hidden>Sign out</button>
-  <a class="btn btn--primary" href="signup.html">Get Started</a>
-  <a href="staff.html" id="drawerStaff" hidden>Staff</a>
-</div>
+  <!-- Drawer positioned relative to nav header -->
+  <div id="drawer" class="drawer" style="display: none;">
+    <a href="#cars">Browse Cars</a>
+    <a id="drawerInfo" href="showInformation.html" style="display: none;">Information</a>
+    <a id="drawerReserves" href="showReserves.html" style="display: none;">Reserves</a>
+    <button id="drawerSignOut" class="drawer-btn" style="display: none;">Sign out</button>
+    <a id="drawerSignIn" href="login.html" style="display: block;">Sign In</a>
+    <a id="drawerGetStarted" href="signup.html" style="display: block;">Get Started</a>
+    <a href="staff.html" id="drawerStaff" style="display: none;">Staff</a>
+  </div>
+</header>
 
 <!-- Hero -->
 <section class="hero">
@@ -132,7 +135,7 @@
   </div>
 </footer>
 
-<!-- Beautiful Reservation Modal -->
+<!-- Reservation Modal -->
 <dialog id="modal" class="modal">
   <form method="dialog" onsubmit="return false;">
     <!-- Modal Header -->
@@ -282,8 +285,36 @@ const btnClose=document.getElementById("btnClose");
 // Nav drawer
 const menu=document.getElementById("menu");
 const drawer=document.getElementById("drawer");
-menu?.addEventListener("click",()=>drawer.classList.toggle("open"));
-drawer?.addEventListener("click",()=>drawer.classList.remove("open"));
+
+menu?.addEventListener("click",(e)=>{
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Toggle using inline style instead of class
+  const isOpen = drawer.style.display === "flex";
+  if(isOpen) {
+    drawer.style.display = "none";
+    drawer.classList.remove("open");
+  } else {
+    drawer.style.display = "flex";
+    drawer.classList.add("open");
+  }
+
+  console.log("Drawer toggled. Display:", drawer.style.display);
+});
+
+drawer?.addEventListener("click",()=>{
+  drawer.style.display = "none";
+  drawer.classList.remove("open");
+});
+
+// Close drawer when clicking outside
+document.addEventListener("click",(e)=>{
+  if(drawer && !drawer.contains(e.target) && !menu.contains(e.target)){
+    drawer.style.display = "none";
+    drawer.classList.remove("open");
+  }
+});
 
 // Footer year
 year.textContent=new Date().getFullYear();
@@ -314,8 +345,12 @@ function refreshAuthUI() {
   const greet = document.getElementById("navGreeting");
   const signIn = document.getElementById("navSignIn");
   const signOut = document.getElementById("navSignOut");
+  const getStarted = document.getElementById("navGetStarted");
   const dSignIn = document.getElementById("drawerSignIn");
   const dSignOut = document.getElementById("drawerSignOut");
+  const dGetStarted = document.getElementById("drawerGetStarted");
+  const dReserves = document.getElementById("drawerReserves");
+  const dInfo = document.getElementById("drawerInfo");
   const navStaff = document.getElementById("navStaff");
   const drawerStaff = document.getElementById("drawerStaff");
 
@@ -323,28 +358,49 @@ function refreshAuthUI() {
   const loggedIn = !!(u && auth.token);
   const isStaff = u && u.role && u.role.toLowerCase() === "staff";
 
-  [signOut, dSignOut, navStaff, drawerStaff].forEach(el => el && (el.hidden = true));
-
   if (loggedIn) {
+    // Logged in: show greeting, sign out, reserves, info
     if (greet) {
       greet.textContent = `Hi, ${u.first_name || u.email}`;
       greet.hidden = false;
     }
+    // Hide sign in and get started using inline styles
     if (signIn) signIn.style.display = "none";
-    if (signOut) signOut.hidden = false;
+    if (getStarted) getStarted.style.display = "none";
     if (dSignIn) dSignIn.style.display = "none";
-    if (dSignOut) dSignOut.hidden = false;
+    if (dGetStarted) dGetStarted.style.display = "none";
 
+    // Show sign out, reserves, info using inline styles
+    if (signOut) signOut.style.display = "inline-block";
+    if (dSignOut) dSignOut.style.display = "block";
+    if (dReserves) dReserves.style.display = "block";
+    if (dInfo) dInfo.style.display = "block";
+
+    // Show staff link if user is staff
     if (isStaff) {
-      if (navStaff) navStaff.hidden = false;
-      if (drawerStaff) drawerStaff.hidden = false;
+      if (navStaff) navStaff.style.display = "inline-block";
+      if (drawerStaff) drawerStaff.style.display = "block";
+    } else {
+      if (navStaff) navStaff.style.display = "none";
+      if (drawerStaff) drawerStaff.style.display = "none";
     }
   } else {
+    // Logged out: show sign in, get started, and staff
     if (greet) greet.hidden = true;
-    if (signIn) signIn.style.display = "";
-    if (signOut) signOut.hidden = true;
-    if (dSignIn) dSignIn.style.display = "";
-    if (dSignOut) dSignOut.hidden = true;
+
+    // Show sign in, get started, and staff using inline styles
+    if (signIn) signIn.style.display = "inline";
+    if (getStarted) getStarted.style.display = "inline-block";
+    if (dSignIn) dSignIn.style.display = "block";
+    if (dGetStarted) dGetStarted.style.display = "block";
+    if (navStaff) navStaff.style.display = "inline-block";
+    if (drawerStaff) drawerStaff.style.display = "block";
+
+    // Hide sign out, reserves, info using inline styles
+    if (signOut) signOut.style.display = "none";
+    if (dSignOut) dSignOut.style.display = "none";
+    if (dReserves) dReserves.style.display = "none";
+    if (dInfo) dInfo.style.display = "none";
   }
 }
 
@@ -387,19 +443,23 @@ async function loadCars(){
   skeletons();
   emptyEl.hidden = true;
   errorEl.hidden = true;
-  
+
   try {
     const params=new URLSearchParams();
     const category=document.getElementById("category").value;
     const seats=document.getElementById("seats").value;
     const transmission=document.getElementById("transmission").value;
     const maxPrice=document.getElementById("maxPrice").value;
-    
+    const startDate=document.getElementById("startDate").value;
+    const endDate=document.getElementById("endDate").value;
+
     if(category)params.set("category",category);
     if(seats)params.set("seats",seats);
     if(transmission)params.set("transmission",transmission);
     if(maxPrice)params.set("max_price",maxPrice);
-    
+    if(startDate)params.set("start_date",startDate);
+    if(endDate)params.set("end_date",endDate);
+
     console.log("Fetching cars from:", `${API}/cars?${params.toString()}`);
     
     const res = await fetch(`${API}/cars?${params.toString()}`);
