@@ -384,7 +384,7 @@
       const list = document.getElementById("carList");
       list.innerHTML = "<p style='color: #64748b;'>Loading cars...</p>";
       try {
-        const res = await api("/cars", { method: "GET", headers: {} });
+        const res = await api("/cars/staff/with_reservations", { method: "GET" });
         if (!res || !res.ok) throw new Error("Failed to load cars");
         const cars = await res.json();
         list.innerHTML = cars.map(c => `
@@ -408,6 +408,17 @@
                 </select>
               </label>
             </div>
+            <div class="row" style="gap:12px; margin: 12px 0;">
+              <label style="flex:1">
+                <small>Start Date</small>
+                <input type="date" id="start-${c.id}" value="${c.start_date || ''}" ${!c.start_date ? 'disabled' : ''} readonly style="background: #f8fafc; cursor: not-allowed;">
+              </label>
+              <label style="flex:1">
+                <small>End Date</small>
+                <input type="date" id="end-${c.id}" value="${c.end_date || ''}" ${!c.end_date ? 'disabled' : ''} readonly style="background: #f8fafc; cursor: not-allowed;">
+              </label>
+            </div>
+            ${c.res_id ? `<small class="muted" style="margin-bottom: 8px;">Reservation: ${c.res_id}</small>` : ''}
             <button class="btn btn--primary small" onclick="updateCar('${c.id}')">Save Changes</button>
           </div>
         `).join("");

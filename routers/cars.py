@@ -135,3 +135,27 @@ def update_car(car_id: str, car: CarUpdate):
         conn.execute(query, params)
     
     return {"message": "Car updated successfully", "car_id": car_id}
+
+
+@router.get("/staff/with_reservations")
+def list_cars_with_reservations():
+    """Get all cars with their current reservation dates - staff only"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT
+                c.car_id AS id,
+                c.brand,
+                c.model,
+                c.year,
+                c.price_per_day::float AS price_per_day,
+                c.status::text AS status,
+                r.start_date,
+                r.end_date,
+                r.res_id
+            FROM public.cars c
+            LEFT JOIN public.reservations r ON c.car_id = r.car_id
+                AND r.status IN ('Reserved', 'Active')
+            ORDER BY c.brand, c.model
+        """).fetchall()
+
+    return JSONResponse(content=jsonable_encoder(rows))
