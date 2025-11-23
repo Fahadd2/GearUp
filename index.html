@@ -385,22 +385,22 @@ function refreshAuthUI() {
       if (drawerStaff) drawerStaff.style.display = "none";
     }
   } else {
-    // Logged out: show sign in and get started
+    // Logged out: show sign in, get started, and staff
     if (greet) greet.hidden = true;
 
-    // Show sign in and get started using inline styles
+    // Show sign in, get started, and staff using inline styles
     if (signIn) signIn.style.display = "inline";
     if (getStarted) getStarted.style.display = "inline-block";
     if (dSignIn) dSignIn.style.display = "block";
     if (dGetStarted) dGetStarted.style.display = "block";
+    if (navStaff) navStaff.style.display = "inline-block";
+    if (drawerStaff) drawerStaff.style.display = "block";
 
-    // Hide sign out, reserves, info, staff using inline styles
+    // Hide sign out, reserves, info using inline styles
     if (signOut) signOut.style.display = "none";
     if (dSignOut) dSignOut.style.display = "none";
     if (dReserves) dReserves.style.display = "none";
     if (dInfo) dInfo.style.display = "none";
-    if (navStaff) navStaff.style.display = "none";
-    if (drawerStaff) drawerStaff.style.display = "none";
   }
 }
 
