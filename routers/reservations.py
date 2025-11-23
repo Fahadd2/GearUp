@@ -108,7 +108,9 @@ def list_reservations():
                 c.first_name || ' ' || c.last_name as customer_name,
                 c.email as customer_email,
                 car.brand || ' ' || car.model as car_name,
-                inv.inv_id
+                inv.inv_id,
+                inv.total_amount,
+                inv.payment_status
             FROM public.reservations r
             LEFT JOIN public.customers c ON r.customer_license_no = c.license_no
             LEFT JOIN public.cars car ON r.car_id = car.car_id

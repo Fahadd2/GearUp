@@ -331,6 +331,8 @@
               <tr style="border-bottom: 2px solid #e2e8f0; text-align: left;">
                 <th style="padding: 12px;">Reservation ID</th>
                 <th style="padding: 12px;">Invoice ID</th>
+                <th style="padding: 12px;">Amount (SAR)</th>
+                <th style="padding: 12px;">Payment</th>
                 <th style="padding: 12px;">Customer</th>
                 <th style="padding: 12px;">Car</th>
                 <th style="padding: 12px;">Start Date</th>
@@ -343,6 +345,10 @@
                 <tr style="border-bottom: 1px solid #f1f5f9;">
                   <td style="padding: 12px;"><strong>${r.res_id}</strong></td>
                   <td style="padding: 12px;"><strong>${r.inv_id || 'N/A'}</strong></td>
+                  <td style="padding: 12px;">${r.total_amount ? r.total_amount.toFixed(2) : 'N/A'}</td>
+                  <td style="padding: 12px;">
+                    <span class="${r.payment_status === 'paid' ? 'badge' : 'badge-soft'}">${r.payment_status || 'N/A'}</span>
+                  </td>
                   <td style="padding: 12px;">
                     ${r.customer_name || 'N/A'}<br>
                     <small class="muted">${r.customer_email || ''}</small>
