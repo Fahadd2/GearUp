@@ -17,10 +17,10 @@
 
     <div class="nav__actions">
       <span class="muted small" id="navGreeting" hidden></span>
-      <a class="muted small" id="navSignIn" href="login.html">Sign In</a>
-      <button class="btn btn--ghost small" id="navSignOut" hidden>Sign out</button>
-      <a class="btn btn--primary small" href="signup.html">Get Started</a>
-      <a class="btn btn--ghost small" href="staff.html" id="navStaff" hidden>Staff</a>
+      <a class="muted small" id="navSignIn" href="login.html" style="display: inline;">Sign In</a>
+      <button class="btn btn--ghost small" id="navSignOut" style="display: none;">Sign out</button>
+      <a class="btn btn--primary small" id="navGetStarted" href="signup.html" style="display: inline-block;">Get Started</a>
+      <a class="btn btn--ghost small" href="staff.html" id="navStaff" style="display: none;">Staff</a>
       <button id="menu" class="menu" aria-label="Open menu" style="display: inline-block;">☰</button>
     </div>
   </div>
@@ -28,11 +28,12 @@
   <!-- Drawer positioned relative to nav header -->
   <div id="drawer" class="drawer" style="display: none;">
     <a href="#cars">Browse Cars</a>
-    <a id="drawerInfo" href="showInformation.html" hidden>Information</a>
-    <a id="drawerReserves" href="showReserves.html" hidden>Reserves</a>
-    <button id="drawerSignOut" class="drawer-btn" hidden>Sign out</button>
-    <a id="drawerSignIn" href="login.html">Sign In</a>
-    <a href="staff.html" id="drawerStaff" hidden>Staff</a>
+    <a id="drawerInfo" href="showInformation.html" style="display: none;">Information</a>
+    <a id="drawerReserves" href="showReserves.html" style="display: none;">Reserves</a>
+    <button id="drawerSignOut" class="drawer-btn" style="display: none;">Sign out</button>
+    <a id="drawerSignIn" href="login.html" style="display: block;">Sign In</a>
+    <a id="drawerGetStarted" href="signup.html" style="display: block;">Get Started</a>
+    <a href="staff.html" id="drawerStaff" style="display: none;">Staff</a>
   </div>
 </header>
 
@@ -344,8 +345,10 @@ function refreshAuthUI() {
   const greet = document.getElementById("navGreeting");
   const signIn = document.getElementById("navSignIn");
   const signOut = document.getElementById("navSignOut");
+  const getStarted = document.getElementById("navGetStarted");
   const dSignIn = document.getElementById("drawerSignIn");
   const dSignOut = document.getElementById("drawerSignOut");
+  const dGetStarted = document.getElementById("drawerGetStarted");
   const dReserves = document.getElementById("drawerReserves");
   const dInfo = document.getElementById("drawerInfo");
   const navStaff = document.getElementById("navStaff");
@@ -355,30 +358,49 @@ function refreshAuthUI() {
   const loggedIn = !!(u && auth.token);
   const isStaff = u && u.role && u.role.toLowerCase() === "staff";
 
-  [signOut, dSignOut, dReserves, dInfo, navStaff, drawerStaff].forEach(el => el && (el.hidden = true));
-
   if (loggedIn) {
+    // Logged in: show greeting, sign out, reserves, info
     if (greet) {
       greet.textContent = `Hi, ${u.first_name || u.email}`;
       greet.hidden = false;
     }
+    // Hide sign in and get started using inline styles
     if (signIn) signIn.style.display = "none";
-    if (signOut) signOut.hidden = false;
+    if (getStarted) getStarted.style.display = "none";
     if (dSignIn) dSignIn.style.display = "none";
-    if (dSignOut) dSignOut.hidden = false;
-    if (dReserves) dReserves.hidden = false;
-    if (dInfo) dInfo.hidden = false;
+    if (dGetStarted) dGetStarted.style.display = "none";
 
+    // Show sign out, reserves, info using inline styles
+    if (signOut) signOut.style.display = "inline-block";
+    if (dSignOut) dSignOut.style.display = "block";
+    if (dReserves) dReserves.style.display = "block";
+    if (dInfo) dInfo.style.display = "block";
+
+    // Show staff link if user is staff
     if (isStaff) {
-      if (navStaff) navStaff.hidden = false;
-      if (drawerStaff) drawerStaff.hidden = false;
+      if (navStaff) navStaff.style.display = "inline-block";
+      if (drawerStaff) drawerStaff.style.display = "block";
+    } else {
+      if (navStaff) navStaff.style.display = "none";
+      if (drawerStaff) drawerStaff.style.display = "none";
     }
   } else {
+    // Logged out: show sign in and get started
     if (greet) greet.hidden = true;
-    if (signIn) signIn.style.display = "";
-    if (signOut) signOut.hidden = true;
-    if (dSignIn) dSignIn.style.display = "";
-    if (dSignOut) dSignOut.hidden = true;
+
+    // Show sign in and get started using inline styles
+    if (signIn) signIn.style.display = "inline";
+    if (getStarted) getStarted.style.display = "inline-block";
+    if (dSignIn) dSignIn.style.display = "block";
+    if (dGetStarted) dGetStarted.style.display = "block";
+
+    // Hide sign out, reserves, info, staff using inline styles
+    if (signOut) signOut.style.display = "none";
+    if (dSignOut) dSignOut.style.display = "none";
+    if (dReserves) dReserves.style.display = "none";
+    if (dInfo) dInfo.style.display = "none";
+    if (navStaff) navStaff.style.display = "none";
+    if (drawerStaff) drawerStaff.style.display = "none";
   }
 }
 
