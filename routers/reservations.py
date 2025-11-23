@@ -90,6 +90,13 @@ def create_reservation_authed(payload: ReserveAuthedIn,
             RETURNING inv_id, total_amount
         """, {"rid": res["res_id"], "total": total}).fetchone()
 
+        # Update car status to Reserved
+        conn.execute("""
+            UPDATE public.cars
+            SET status = 'Reserved'
+            WHERE car_id = %(car)s
+        """, {"car": payload.car_id})
+
     return {"reservation_id": res["res_id"], "invoice_id": inv["inv_id"], "total_amount": float(inv["total_amount"])}
 
 
@@ -158,7 +165,7 @@ def update_reservation_status(reservation_id: str, payload: ReservationStatusUpd
     with get_conn() as conn:
         # Check if reservation exists
         row = conn.execute(
-            "SELECT res_id, status FROM public.reservations WHERE res_id = %(rid)s",
+            "SELECT res_id, status, car_id FROM public.reservations WHERE res_id = %(rid)s",
             {"rid": reservation_id}
         ).fetchone()
 
@@ -171,4 +178,53 @@ def update_reservation_status(reservation_id: str, payload: ReservationStatusUpd
             {"status": payload.status, "rid": reservation_id}
         )
 
+        # Update car status based on reservation status
+        if payload.status == "Active":
+            # Customer picked up the car
+            conn.execute(
+                "UPDATE public.cars SET status = 'Rented' WHERE car_id = %(car_id)s",
+                {"car_id": row["car_id"]}
+            )
+        elif payload.status == "Completed":
+            # Customer returned the car, set back to Available
+            conn.execute(
+                "UPDATE public.cars SET status = 'Available' WHERE car_id = %(car_id)s",
+                {"car_id": row["car_id"]}
+            )
+        elif payload.status == "Reserved":
+            # Reservation created, mark car as Reserved
+            conn.execute(
+                "UPDATE public.cars SET status = 'Reserved' WHERE car_id = %(car_id)s",
+                {"car_id": row["car_id"]}
+            )
+
     return {"ok": True, "message": f"Reservation status updated to {payload.status}"}
+
+
+@router.post("/auto_update_statuses")
+def auto_update_expired_reservations():
+    """Automatically update expired reservations to Completed and set cars to Available"""
+    with get_conn() as conn:
+        # Find all Active reservations where end_date < today
+        expired = conn.execute("""
+            SELECT res_id, car_id
+            FROM public.reservations
+            WHERE status = 'Active'
+              AND end_date < CURRENT_DATE
+        """).fetchall()
+
+        updated_count = 0
+        for reservation in expired:
+            # Update reservation to Completed
+            conn.execute(
+                "UPDATE public.reservations SET status = 'Completed' WHERE res_id = %(rid)s",
+                {"rid": reservation["res_id"]}
+            )
+            # Set car back to Available
+            conn.execute(
+                "UPDATE public.cars SET status = 'Available' WHERE car_id = %(car_id)s",
+                {"car_id": reservation["car_id"]}
+            )
+            updated_count += 1
+
+    return {"ok": True, "updated": updated_count, "message": f"Updated {updated_count} expired reservation(s)"}

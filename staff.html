@@ -206,6 +206,15 @@
       return r;
     }
 
+    // ---------- Auto-update expired reservations ----------
+    async function autoUpdateStatuses(){
+      try {
+        await api("/reservations/auto_update_statuses", { method: "POST" });
+      } catch {
+        // Silent fail - this is a background task
+      }
+    }
+
     // ---------- KPIs ----------
     async function loadKpis(){
       try {
@@ -433,15 +442,23 @@
       }
 
       document.getElementById("reloadReservations").addEventListener("click", async () => {
+        await autoUpdateStatuses();
         await loadReservations();
         await populateReservationSelect();
       });
-      document.getElementById("reloadCars").addEventListener("click", loadCarsForStaff);
+      document.getElementById("reloadCars").addEventListener("click", async () => {
+        await autoUpdateStatuses();
+        await loadCarsForStaff();
+      });
 
-      loadKpis();
-      loadReservations();
-      loadCarsForStaff();
-      populateReservationSelect();
+      // Initial load
+      (async () => {
+        await autoUpdateStatuses();
+        loadKpis();
+        loadReservations();
+        loadCarsForStaff();
+        populateReservationSelect();
+      })();
     });
   </script>
 </body>
