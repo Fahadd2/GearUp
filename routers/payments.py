@@ -43,13 +43,35 @@ def record_payment(payload: PayIn, authorization: Optional[str] = Header(None)):
             if not inv:
                 raise HTTPException(status_code=404, detail=f"Invoice {iid} not found. Please check the invoice ID.")
 
+            # Check if invoice is already paid
+            if inv["payment_status"] == "paid":
+                raise HTTPException(status_code=400, detail="The invoice is already paid.")
+
+            # Calculate current total paid
+            current_paid = conn.execute("""
+                SELECT COALESCE(SUM(amount), 0) AS paid
+                FROM public.payments
+                WHERE invoice_id = %(iid)s
+            """, {"iid": iid}).fetchone()["paid"]
+
+            # Check if new payment would exceed invoice total
+            new_total = float(current_paid) + amt
+            invoice_total = float(inv["total_amount"])
+
+            if new_total > invoice_total:
+                remaining = invoice_total - float(current_paid)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Payment amount ({amt:.2f} SAR) exceeds remaining balance ({remaining:.2f} SAR). Invoice total: {invoice_total:.2f} SAR."
+                )
+
             # Insert payment with employee ID
             conn.execute("""
                 INSERT INTO public.payments (invoice_id, method, amount, reference, recorded_by_emp_id)
                 VALUES (%(iid)s, %(m)s, %(a)s, %(ref)s, %(emp)s)
             """, {"iid": iid, "m": method, "a": amt, "ref": reference, "emp": emp_id})
 
-            # Recalculate total paid
+            # Recalculate total paid after insertion
             paid = conn.execute("""
                 SELECT COALESCE(SUM(amount), 0) AS paid
                 FROM public.payments
