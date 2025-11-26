@@ -418,8 +418,7 @@ function skeletons(n=6){
 }
 
 function card(c){
-  const photo=c.photo_url||
-    "https://images.unsplash.com/photo-1549924231-f129b911e442?q=80&w=1600&auto=format&fit=crop";
+const photo = c.photo_url;
   return `
   <li class="card">
     <img class="card__img" src="${photo}" alt="${c.brand} ${c.model}" loading="lazy" />
